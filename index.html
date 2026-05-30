@@ -1,587 +1,1077 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Zero Proof - Sobriety & Physical Recovery Tracker</title>
-  <!-- Google Fonts: Space Grotesk & Inter -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-  <!-- Tailwind CSS Play CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Lucide Vector Icons CDN -->
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <style>
-    body {
-      font-family: 'Inter', sans-serif;
-    }
-    h1, h2, h3, .font-display {
-      font-family: 'Space Grotesk', sans-serif;
-    }
-    /* Theme color configuration using native variables */
-    .theme-blue {
-      --color-primary: #2563eb;
-      --color-primary-hover: #1d4ed8;
-      --color-primary-soft: #eff6ff;
-      --color-primary-text: #1e40af;
-      --color-grad-start: #1e3a8a;
-      --color-grad-end: #0f172a;
-    }
-    .theme-emerald {
-      --color-primary: #059669;
-      --color-primary-hover: #047857;
-      --color-primary-soft: #ecfdf5;
-      --color-primary-text: #065f46;
-      --color-grad-start: #064e3b;
-      --color-grad-end: #0f172a;
-    }
-    .theme-indigo {
-      --color-primary: #4f46e5;
-      --color-primary-hover: #4338ca;
-      --color-primary-soft: #eef2ff;
-      --color-primary-text: #3730a3;
-      --color-grad-start: #312e81;
-      --color-grad-end: #1e1b4b;
-    }
-    .theme-sunset {
-      --color-primary: #ea580c;
-      --color-primary-hover: #c2410c;
-      --color-primary-soft: #fff7ed;
-      --color-primary-text: #9a3412;
-      --color-grad-start: #7c2d12;
-      --color-grad-end: #4c0519;
-    }
-    .theme-purple {
-      --color-primary: #9333ea;
-      --color-primary-hover: #7e22ce;
-      --color-primary-soft: #faf5ff;
-      --color-primary-text: #6b21a8;
-      --color-grad-start: #581c87;
-      --color-grad-end: #111827;
-    }
-    .bg-theme-primary { background-color: var(--color-primary); }
-    .text-theme-primary { color: var(--color-primary); }
-    .bg-theme-soft { background-color: var(--color-primary-soft); }
-    .text-theme-soft-text { color: var(--color-primary-text); }
-    .bg-theme-gradient { background: linear-gradient(135deg, var(--color-grad-start), var(--color-grad-end)); }
-    .border-theme-primary { border-color: var(--color-primary); }
-    .hover\:bg-theme-primary-hover:hover { background-color: var(--color-primary-hover); }
+import React, { useState, useEffect } from 'react';
+import { 
+  Flame, Calendar, Shield, Trophy, LayoutGrid, Sparkles, MessageSquare, 
+  Settings, Clock, Bell, RefreshCw, Star, Info, Volume2, VolumeX, AlertCircle, Sparkle, Palette, Lightbulb
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
-    /* Hide scrollbars elegantly */
-    .no-scrollbar::-webkit-scrollbar { display: none; }
-    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-  </style>
-</head>
-<body id="app-container" class="theme-blue min-h-screen bg-slate-50/50 text-slate-800 pb-12 transition-all">
+import OnboardingModal from './components/OnboardingModal';
+import SoberStreakCard from './components/SoberStreakCard';
+import DailyLogger from './components/DailyLogger';
+import MilestonesCard from './components/MilestonesCard';
+import WidgetSimulator from './components/WidgetSimulator';
+import HistoryChart from './components/HistoryChart';
+import DailyTipsCard, { STATIC_SOBRIETY_TIPS } from './components/DailyTipsCard';
+import NotificationSettingsCard from './components/NotificationSettingsCard';
+// @ts-ignore
+import zeroProofLogo from './assets/images/zero_proof_logo_1780106263308.png';
 
-  <!-- Active Overlay Toasts -->
-  <div id="toast-container" class="fixed top-4 right-4 left-4 md:left-auto md:w-96 z-50 space-y-3 pointer-events-none"></div>
+import { UserProfile, DayLog, WidgetConfig, Encouragement, StreakDetail, SeparationPathway } from './types';
+import { 
+  calculateStreakAndJourney, 
+  getFormattedDate, 
+  generateMockHistory, 
+  generateTaperMockHistory,
+  getRandomTimeBetween10And12, 
+  getRandomTimeRange,
+  getUnlockedMilestones,
+  DEFAULT_ENCOURAGEMENTS
+} from './utils';
 
-  <!-- Physical Restoration Milestone Celebration Modal -->
-  <div id="milestone-modal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md hidden items-center justify-center p-4">
-    <div class="bg-white rounded-3xl p-6 shadow-2xl max-w-lg w-full border border-slate-100 text-center relative overflow-hidden animate-scale-up">
-      <div class="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-blue-500 via-amber-400 to-indigo-500"></div>
-      <div class="flex justify-center mb-4 mt-2">
-        <span class="p-4 bg-amber-50 rounded-full border border-amber-100 text-amber-500">
-          <i data-lucide="trophy" class="w-10 h-10"></i>
-        </span>
-      </div>
-      <span class="text-[10px] uppercase font-black text-amber-600 bg-amber-50 px-3 py-1 rounded-full tracking-wider inline-block">Milestone Ceremony Achieved</span>
-      <h3 id="milestone-modal-title" class="text-xl font-bold text-slate-800 mt-3">First 24 Hours</h3>
-      <p id="milestone-modal-desc" class="text-xs text-slate-600 mt-3 leading-relaxed font-medium">Sober for a full day! Dopamine levels are re-sensitizing.</p>
-      <div class="mt-5 p-4 bg-slate-50 rounded-2xl border border-slate-100 text-[11px] text-slate-500 font-semibold leading-relaxed text-left flex gap-2">
-        <i data-lucide="shield" class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5"></i>
-        <span>Sobriety is a cellular gift. Glial cells are actively repairing and cardiovascular fatigue is declining.</span>
-      </div>
-      <button onclick="closeMilestoneModal()" class="mt-6 w-full py-3 bg-slate-800 hover:bg-slate-950 text-white font-bold text-xs rounded-xl transition-all cursor-pointer">Continue Clear Timeline</button>
-    </div>
-  </div>
-
-  <!-- Standard Multi-Step Onboarding Wizards -->
-  <div id="onboarding-overlay" class="fixed inset-0 z-40 bg-slate-900/90 backdrop-blur-sm hidden items-center justify-center p-4">
-    <div class="bg-white rounded-3xl p-6 shadow-2xl max-w-md w-full border border-slate-100 relative overflow-hidden transition-all">
-      <div class="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-blue-500 to-indigo-500"></div>
-      <div class="flex items-center gap-3 mb-4">
-        <div class="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 font-bold border border-blue-100">ZP</div>
-        <div>
-          <h2 class="text-base font-extrabold text-slate-800">Activate Your Shield</h2>
-          <p class="text-[11px] text-slate-400 font-medium">Step-by-step physical recovery setup</p>
-        </div>
-      </div>
-      
-      <div class="space-y-4">
-        <div>
-          <label class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Select Timeline Start Date</label>
-          <input type="date" id="onboarding-start-date" class="w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs px-3 py-2 rounded-xl focus:border-blue-500 focus:outline-none font-semibold" />
-        </div>
-
-        <div>
-          <label class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Sobriety Pathway Mode</label>
-          <div class="grid grid-cols-2 gap-3">
-            <label onclick="toggleOnboardingPathway('quit')" class="border rounded-2xl p-3 flex flex-col justify-between h-20 cursor-pointer transition-all border-blue-500 bg-blue-50/30 font-medium relative" id="pw-option-quit">
-              <span class="text-xs font-extrabold text-slate-800">Dry Shield</span>
-              <span class="text-[9px] text-slate-400">Continuous sober streak</span>
-              <i data-lucide="shield" class="w-4 h-4 text-blue-600 absolute bottom-3 right-3"></i>
-            </label>
-            <label onclick="toggleOnboardingPathway('reduce')" class="border rounded-2xl p-3 flex flex-col justify-between h-20 cursor-pointer transition-all border-slate-200 hover:border-slate-350 bg-white font-medium relative" id="pw-option-reduce">
-              <span class="text-xs font-extrabold text-slate-800">Safe Reduction</span>
-              <span class="text-[9px] text-slate-400">Gradual tapering logs</span>
-              <i data-lucide="sparkle" class="w-4 h-4 text-emerald-500 absolute bottom-3 right-3"></i>
-            </label>
-          </div>
-        </div>
-
-        <div id="onboarding-taper-fields" class="hidden space-y-3 p-3 bg-amber-50/50 border border-amber-100 rounded-2xl">
-          <div>
-            <label class="text-[9px] font-bold text-amber-700 uppercase tracking-wider block mb-1">Baseline Standard Drinks (Per Day)</label>
-            <input type="number" id="onboarding-baseline-drinks" value="6" min="1" max="50" class="w-full bg-white border border-slate-200 text-slate-700 text-xs px-3 py-1.5 rounded-xl focus:border-blue-500 focus:outline-none font-semibold" />
-          </div>
-          <div>
-            <label class="text-[9px] font-bold text-amber-700 uppercase tracking-wider block mb-1">Target Continuous Quit Date</label>
-            <input type="date" id="onboarding-quit-date" class="w-full bg-white border border-slate-200 text-slate-700 text-xs px-3 py-1.5 rounded-xl focus:border-blue-500 focus:outline-none font-semibold" />
-          </div>
-        </div>
-
-        <div class="flex items-center gap-2.5 p-1">
-          <input type="checkbox" id="onboarding-seed-mock" checked class="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500" />
-          <div>
-            <label for="onboarding-seed-mock" class="text-xs font-bold text-slate-700 cursor-pointer">Seed High-Fidelity Mock Recovery Logs</label>
-            <span class="text-[10px] text-slate-400 block font-medium">Seed last 40 days of history to see real charts & claim milestones instantly</span>
-          </div>
-        </div>
-
-        <button onclick="submitOnboarding()" class="w-full mt-2 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl tracking-wider uppercase shadow-md transition-all cursor-pointer">Activate Recovery Shield</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Primary App Layout Wrapper -->
-  <div id="app-wrapper" class="max-w-6xl mx-auto px-4 pt-6 space-y-6 hidden">
+// Audio sounds using synthetic browser synth for satisfying micro-interaction effects
+function playPleasantChime(type: 'success' | 'alert' | 'text' | 'click') {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
     
-    <!-- Header Controls -->
-    <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 bg-white border border-slate-100 rounded-3xl shadow-xs">
-      <div class="flex items-center gap-3">
-        <div class="relative w-12 h-12 flex-shrink-0 bg-theme-gradient text-white flex items-center justify-center font-bold text-lg tracking-wider rounded-2xl shadow-md border border-slate-100">
-          ZP
-          <span class="absolute -bottom-1 -right-1 bg-emerald-500 border-2 border-white w-3.5 h-3.5 rounded-full" title="Active Protection Shield"></span>
-        </div>
-        <div>
-          <h1 class="text-xl font-extrabold text-slate-800 tracking-tight">Zero Proof</h1>
-          <p class="text-xs text-slate-400 font-semibold mt-0.5">
-            Physical restoration tracker • Starting date: <span id="header-start-date-badge" class="text-slate-700 bg-slate-100 font-mono font-extrabold text-[11px] px-1.5 py-0.5 rounded border border-slate-200/50">-</span>
-          </p>
-        </div>
-      </div>
+    osc.connect(gain);
+    gain.connect(ctx.destination);
 
-      <!-- Tab Switch Nav Panel -->
-      <div class="flex flex-wrap items-center gap-3">
-        <div class="flex bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-3xs">
-          <button id="tab-btn-dashboard" onclick="switchTab('dashboard')" class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all bg-theme-primary text-white shadow-sm cursor-pointer">
-            <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i>
-            Dashboard
-          </button>
-          <button id="tab-btn-resources" onclick="switchTab('resources')" class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all text-slate-500 hover:text-slate-800 cursor-pointer">
-            <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
-            Resources
-          </button>
-          <button id="tab-btn-contacts" onclick="switchTab('contacts')" class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all text-slate-500 hover:text-slate-800 cursor-pointer">
-            <i data-lucide="users" class="w-3.5 h-3.5"></i>
-            Contacts
-          </button>
-          <button id="tab-btn-settings" onclick="switchTab('settings')" class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all text-slate-500 hover:text-slate-800 cursor-pointer">
-            <i data-lucide="settings" class="w-3.5 h-3.5"></i>
-            Settings
-          </button>
-        </div>
-
-        <button onclick="toggleAudioMute()" class="p-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-xl transition-all cursor-pointer" title="Toggle audio sound feedback">
-          <i id="audio-toggle-icon" data-lucide="volume-2" class="w-4 h-4 text-theme-primary"></i>
-        </button>
-      </div>
-    </header>
-
-
-      <div class="md:col-span-7 flex flex-wrap items-center justify-end gap-3">
-        <!-- clock output -->
-        <div class="px-3.5 py-1.5 bg-black/40 rounded-xl border border-white/5 font-mono text-xs flex items-center gap-1.5">
-          <i data-lucide="clock" class="w-3.5 h-3.5 text-theme-primary"></i>
-          <span class="font-bold text-white text-[11px]">Sim Time:</span>
-          <span id="sandbox-clock-hours" class="font-extrabold text-emerald-300 tracking-wider">12:00</span>
-          <span class="text-white/20">|</span>
-          <span id="sandbox-clock-date" class="text-slate-400 text-[10px] font-bold">-</span>
-        </div>
-
-
-    <!-- SNOOZE ADVISORY BANNER -->
-    <div id="snooze-banner" class="hidden p-4 bg-white border border-slate-100 rounded-2xl shadow-xs justify-between items-center gap-4 transition-all animate-slide-down">
-      <div class="flex items-start gap-3">
-        <span class="p-2 rounded-xl bg-amber-50 text-amber-500 shrink-0">
-          <i data-lucide="clock" class="w-5 h-5 animate-pulse"></i>
-        </span>
-        <div>
-          <span class="text-xs font-extrabold text-slate-800 block">Logging Reminder Snoozed</span>
-          <span id="snooze-banner-desc" class="text-[11px] text-slate-400 font-semibold block leading-relaxed mt-0.5">Need more time? The daily check-in is temporarily snoozed. Delay count: 1 hr.</span>
-        </div>
-      </div>
-      <div class="flex items-center gap-2 shrink-0">
-        <button onclick="resetSnoozeDelay()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[11px] font-extrabold text-slate-600 rounded-xl cursor-pointer">Reset</button>
-        <button onclick="snoozeCheckInReminders()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-605 text-[11px] font-extrabold text-white rounded-xl shadow-xs cursor-pointer">Snooze +1 Hr</button>
-      </div>
-    </div>
-
-    <!-- TABS WINDOWS -->
-    <div id="tabs-container">
+    if (type === 'success') {
+      // Ascending major chord notes
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+      osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1); // E5
+      osc.frequency.setValueAtTime(783.99, ctx.currentTime + 0.2); // G5
+      osc.frequency.setValueAtTime(1046.50, ctx.currentTime + 0.3); // C6
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.65);
+    } else if (type === 'text') {
+      // Double rapid pop
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
       
-      <!-- DASHBOARD TAB VIEW -->
-      <section id="tab-view-dashboard" class="space-y-6">
-        
-        <!-- Big Sober Streak Display Banner -->
-        <div id="sober-streak-banner" class="bg-white border border-slate-100 p-6 rounded-3xl shadow-sm text-center relative overflow-hidden transition-all">
-          <div class="absolute top-0 inset-x-0 h-1 bg-theme-primary"></div>
-          <div class="flex flex-col items-center">
-            <div class="relative flex items-center justify-center mb-1">
-              <span class="p-5 bg-theme-soft text-theme-primary rounded-full border border-theme-primary/10 flex items-center justify-center">
-                <i data-lucide="flame" class="w-14 h-14 relative z-10 animate-pulse"></i>
-              </span>
-            </div>
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.type = 'triangle';
+      osc2.frequency.setValueAtTime(987.77, ctx.currentTime + 0.1);
+      gain2.gain.setValueAtTime(0.1, ctx.currentTime + 0.1);
+      gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+      
+      osc.start();
+      osc.stop(ctx.currentTime + 0.1);
+      osc2.start(ctx.currentTime + 0.1);
+      osc2.stop(ctx.currentTime + 0.26);
+    } else if (type === 'alert') {
+      // Gentle reminder bell
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(440, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(660, ctx.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.55);
+    } else {
+      // Tiny soft tick check click
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1200, ctx.currentTime);
+      gain.gain.setValueAtTime(0.05, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.06);
+    }
+  } catch (err) {
+    // Audio synthesis context is muted or unsupported in standard iframe security, ignore safely
+  }
+}
+
+function getNewEncouragementTarget(prof: UserProfile | null): { hour: number; minute: number } {
+  if (!prof) return { hour: 11, minute: 30 };
+  const mode = prof.encouragementMode || 'range';
+  if (mode === 'specific') {
+    const timeVal = prof.encouragementTime || '12:00';
+    const [h, m] = timeVal.split(':').map(Number);
+    return { hour: isNaN(h) ? 12 : h, minute: isNaN(m) ? 0 : m };
+  } else {
+    const start = prof.encouragementRangeStart || '10:00';
+    const end = prof.encouragementRangeEnd || '22:00';
+    return getRandomTimeRange(start, end);
+  }
+}
+
+export default function App() {
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+
+  // In-app Alert Toast notifications system state
+  const [checkInToast, setCheckInToast] = useState<{ visible: boolean; dateStr: string; timeStr: string } | null>(null);
+  const [smsToast, setSmsToast] = useState<{ visible: boolean; text: string } | null>(null);
+  const [encouragementPushToast, setEncouragementPushToast] = useState<{ visible: boolean; text: string } | null>(null);
+  const [tipsToast, setTipsToast] = useState<{ visible: boolean; title: string; content: string } | null>(null);
+  const [milestoneCelebrated, setMilestoneCelebrated] = useState<{ visible: boolean; id: string; label: string; desc: string } | null>(null);
+
+  // Developer Sandbox Time Sim states
+  const [simDate, setSimDate] = useState<Date>(new Date());
+  const [simHours, setSimHours] = useState<number>(new Date().getHours());
+  const [simMinutes, setSimMinutes] = useState<number>(new Date().getMinutes());
+  const [simPaused, setSimPaused] = useState<boolean>(true);
+
+  // Encouragement random schedule target
+  const [encouragementTarget, setEncouragementTarget] = useState<{ hour: number; minute: number }>({ hour: 11, minute: 30 });
+  const [encouragementLoadedForDay, setEncouragementLoadedForDay] = useState<string>('');
+  
+  // Tips notification tracking
+  const [tipsLoadedForDay, setTipsLoadedForDay] = useState<string>('');
+
+  // Tab state for switching between Dashboard and Settings
+  const [currentTab, setCurrentTab] = useState<'dashboard' | 'settings'>('dashboard');
+
+  // Loaded server-side backup on start
+  useEffect(() => {
+    async function loadData() {
+      // Gather all potential local storage item overrides
+      const savedStartDate = localStorage.getItem("zero_proof_start_date");
+      const savedColorTheme = localStorage.getItem("zero_proof_color_theme");
+      const savedHistoryStr = localStorage.getItem("zero_proof_history");
+      let savedHistory: Record<string, DayLog> = {};
+      if (savedHistoryStr) {
+        try {
+          savedHistory = JSON.parse(savedHistoryStr);
+        } catch (e) {
+          console.warn("Could not parse saved history from localStorage", e);
+        }
+      }
+
+      const savedPathway = localStorage.getItem("zero_proof_pathway") as SeparationPathway | null;
+      const savedBaselineDrinksStr = localStorage.getItem("zero_proof_baseline_drinks");
+      const savedBaselineDrinks = savedBaselineDrinksStr ? Number(savedBaselineDrinksStr) : null;
+      const savedTargetQuitDate = localStorage.getItem("zero_proof_target_quit_date");
+      const savedCustomTriggersStr = localStorage.getItem("zero_proof_custom_triggers");
+      let savedCustomTriggers: string[] | null = null;
+      if (savedCustomTriggersStr) {
+        try { savedCustomTriggers = JSON.parse(savedCustomTriggersStr); } catch (e) {}
+      }
+      const savedCompletedMilestonesStr = localStorage.getItem("zero_proof_completed_milestones");
+      let savedCompletedMilestones: string[] | null = null;
+      if (savedCompletedMilestonesStr) {
+        try { savedCompletedMilestones = JSON.parse(savedCompletedMilestonesStr); } catch (e) {}
+      }
+      const savedReminderEnabledStr = localStorage.getItem("zero_proof_reminder_enabled");
+      const savedReminderEnabled = savedReminderEnabledStr !== null ? savedReminderEnabledStr === "true" : null;
+      const savedReminderTime = localStorage.getItem("zero_proof_reminder_time");
+      const savedTipsEnabledStr = localStorage.getItem("zero_proof_tips_notification_enabled");
+      const savedTipsEnabled = savedTipsEnabledStr !== null ? savedTipsEnabledStr === "true" : null;
+      const savedTipsTime = localStorage.getItem("zero_proof_tips_notification_time");
+      const savedTipsDaysStr = localStorage.getItem("zero_proof_tips_notification_days");
+      let savedTipsDays: Record<string, string> | null = null;
+      if (savedTipsDaysStr) {
+        try { savedTipsDays = JSON.parse(savedTipsDaysStr); } catch (e) {}
+      }
+      const savedEncouragementsStr = localStorage.getItem("zero_proof_encouragements");
+      let savedEncouragements: Encouragement[] | null = null;
+      if (savedEncouragementsStr) {
+        try { savedEncouragements = JSON.parse(savedEncouragementsStr); } catch (e) {}
+      }
+
+      const applyLocalStorageOverrides = (prof: UserProfile): UserProfile => {
+        const updated = { ...prof };
+        if (savedStartDate) updated.startDate = savedStartDate;
+        if (savedColorTheme) updated.colorTheme = savedColorTheme as any;
+        if (Object.keys(savedHistory).length > 0) {
+          updated.history = { ...updated.history, ...savedHistory };
+        }
+        if (savedPathway) updated.pathway = savedPathway;
+        if (savedBaselineDrinks !== null && !isNaN(savedBaselineDrinks)) updated.baselineDrinks = savedBaselineDrinks;
+        if (savedTargetQuitDate) updated.targetQuitDate = savedTargetQuitDate;
+        if (savedCustomTriggers) {
+          updated.customTriggers = Array.from(new Set([...(updated.customTriggers || []), ...savedCustomTriggers]));
+        }
+        if (savedCompletedMilestones) {
+          updated.completedMilestones = Array.from(new Set([...(updated.completedMilestones || []), ...savedCompletedMilestones]));
+        }
+        if (savedReminderEnabled !== null) updated.reminderEnabled = savedReminderEnabled;
+        if (savedReminderTime) updated.reminderTime = savedReminderTime;
+        if (savedTipsEnabled !== null) updated.tipsNotificationEnabled = savedTipsEnabled;
+        if (savedTipsTime) updated.tipsNotificationTime = savedTipsTime;
+        if (savedTipsDays) {
+          updated.tipsNotificationDays = { ...(updated.tipsNotificationDays || {}), ...savedTipsDays };
+        }
+        if (savedEncouragements) {
+          updated.encouragements = savedEncouragements;
+        }
+        return updated;
+      };
+
+      try {
+        const response = await fetch("/api/profile");
+        const json = await response.json();
+        let loadedProfile: UserProfile | null = null;
+        if (json.success && json.profile) {
+          // Parse loaded profile successfully
+          loadedProfile = json.profile;
+        } else {
+          // Fallback to localStorage standard backup
+          const cached = localStorage.getItem("sobriety_profile_cache");
+          if (cached) {
+            loadedProfile = JSON.parse(cached);
+          }
+        }
+
+        if (loadedProfile) {
+          const overridden = applyLocalStorageOverrides(loadedProfile);
+          setProfile(overridden);
+          localStorage.setItem("sobriety_profile_cache", JSON.stringify(overridden));
+        } else if (savedStartDate || savedColorTheme || Object.keys(savedHistory).length > 0) {
+          const initialConfig: WidgetConfig = {
+            theme: (savedColorTheme as any) || 'emerald',
+            size: 'medium'
+          };
+          const fallbackProfile: UserProfile = {
+            startDate: savedStartDate || getFormattedDate(new Date()),
+            resetDate: null,
+            history: savedHistory,
+            reminderEnabled: savedReminderEnabled !== null ? savedReminderEnabled : true,
+            reminderTime: savedReminderTime || "20:00",
+            widgetConfig: initialConfig,
+            encouragements: savedEncouragements || [],
+            completedMilestones: savedCompletedMilestones || [],
+            customTriggers: savedCustomTriggers || [],
+            colorTheme: (savedColorTheme as any) || 'blue',
+            pathway: savedPathway || 'quit',
+            baselineDrinks: savedBaselineDrinks !== null && !isNaN(savedBaselineDrinks) ? savedBaselineDrinks : undefined,
+            targetQuitDate: savedTargetQuitDate || undefined,
+            tipsNotificationEnabled: savedTipsEnabled !== null ? savedTipsEnabled : undefined,
+            tipsNotificationTime: savedTipsTime || undefined,
+            tipsNotificationDays: savedTipsDays || undefined,
+          };
+          setProfile(fallbackProfile);
+          localStorage.setItem("sobriety_profile_cache", JSON.stringify(fallbackProfile));
+        }
+      } catch (err) {
+        console.warn("Failed REST profile lookup, resolving with local storage", err);
+        const cached = localStorage.getItem("sobriety_profile_cache");
+        let loadedProfile: UserProfile | null = null;
+        if (cached) {
+          loadedProfile = JSON.parse(cached);
+        }
+
+        if (loadedProfile) {
+          const overridden = applyLocalStorageOverrides(loadedProfile);
+          setProfile(overridden);
+        } else if (savedStartDate || savedColorTheme || Object.keys(savedHistory).length > 0) {
+          const initialConfig: WidgetConfig = {
+            theme: (savedColorTheme as any) || 'emerald',
+            size: 'medium'
+          };
+          const fallbackProfile: UserProfile = {
+            startDate: savedStartDate || getFormattedDate(new Date()),
+            resetDate: null,
+            history: savedHistory,
+            reminderEnabled: savedReminderEnabled !== null ? savedReminderEnabled : true,
+            reminderTime: savedReminderTime || "20:00",
+            widgetConfig: initialConfig,
+            encouragements: savedEncouragements || [],
+            completedMilestones: savedCompletedMilestones || [],
+            customTriggers: savedCustomTriggers || [],
+            colorTheme: (savedColorTheme as any) || 'blue',
+            pathway: savedPathway || 'quit',
+            baselineDrinks: savedBaselineDrinks !== null && !isNaN(savedBaselineDrinks) ? savedBaselineDrinks : undefined,
+            targetQuitDate: savedTargetQuitDate || undefined,
+            tipsNotificationEnabled: savedTipsEnabled !== null ? savedTipsEnabled : undefined,
+            tipsNotificationTime: savedTipsTime || undefined,
+            tipsNotificationDays: savedTipsDays || undefined,
+          };
+          setProfile(fallbackProfile);
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
+  // Initialize encouragement target on first load of profile
+  const [targetInitialized, setTargetInitialized] = useState(false);
+  useEffect(() => {
+    if (profile && !targetInitialized) {
+      setEncouragementTarget(getNewEncouragementTarget(profile));
+      setTargetInitialized(true);
+    }
+  }, [profile, targetInitialized]);
+
+  // Save changes to cloud and local storage cache
+  const triggerSave = async (updated: UserProfile) => {
+    setProfile(updated);
+    if (updated.startDate) {
+      localStorage.setItem("zero_proof_start_date", updated.startDate);
+    }
+    if (updated.colorTheme) {
+      localStorage.setItem("zero_proof_color_theme", updated.colorTheme);
+    }
+    if (updated.history) {
+      localStorage.setItem("zero_proof_history", JSON.stringify(updated.history));
+    }
+    if (updated.pathway) {
+      localStorage.setItem("zero_proof_pathway", updated.pathway);
+    }
+    if (updated.customTriggers) {
+      localStorage.setItem("zero_proof_custom_triggers", JSON.stringify(updated.customTriggers));
+    }
+    if (updated.completedMilestones) {
+      localStorage.setItem("zero_proof_completed_milestones", JSON.stringify(updated.completedMilestones));
+    }
+    if (updated.baselineDrinks !== undefined) {
+      localStorage.setItem("zero_proof_baseline_drinks", String(updated.baselineDrinks));
+    }
+    if (updated.targetQuitDate) {
+      localStorage.setItem("zero_proof_target_quit_date", updated.targetQuitDate);
+    }
+    localStorage.setItem("zero_proof_reminder_enabled", JSON.stringify(updated.reminderEnabled));
+    if (updated.reminderTime) {
+      localStorage.setItem("zero_proof_reminder_time", updated.reminderTime);
+    }
+    if (updated.tipsNotificationEnabled !== undefined) {
+      localStorage.setItem("zero_proof_tips_notification_enabled", JSON.stringify(updated.tipsNotificationEnabled));
+    }
+    if (updated.tipsNotificationTime) {
+      localStorage.setItem("zero_proof_tips_notification_time", updated.tipsNotificationTime);
+    }
+    if (updated.tipsNotificationDays) {
+      localStorage.setItem("zero_proof_tips_notification_days", JSON.stringify(updated.tipsNotificationDays));
+    }
+    if (updated.encouragements) {
+      localStorage.setItem("zero_proof_encouragements", JSON.stringify(updated.encouragements));
+    }
+
+    localStorage.setItem("sobriety_profile_cache", JSON.stringify(updated));
+    try {
+      await fetch("/api/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updated)
+      });
+    } catch (err) {
+      console.error("Failed saving cloud backup server-side:", err);
+    }
+  };
+
+  // Onboarding Start
+  const handleOnboardingSave = (
+    startDate: string,
+    seedMock: boolean,
+    pathway: 'quit' | 'reduce',
+    baselineDrinks?: number,
+    targetQuitDate?: string
+  ) => {
+    const initialConfig: WidgetConfig = {
+      theme: 'emerald',
+      size: 'medium'
+    };
+
+    let initialHistory = {};
+    if (seedMock) {
+      if (pathway === 'reduce' && baselineDrinks && targetQuitDate) {
+        initialHistory = generateTaperMockHistory(startDate, targetQuitDate, baselineDrinks);
+      } else {
+        initialHistory = generateMockHistory(startDate, 40);
+      }
+    }
+
+    const newProfile: UserProfile = {
+      startDate,
+      resetDate: null,
+      history: initialHistory,
+      reminderEnabled: true,
+      reminderTime: "20:00", // Default reminder time is 8 PM (20:00)
+      widgetConfig: initialConfig,
+      encouragements: [],
+      completedMilestones: [],
+      customTriggers: [],
+      colorTheme: 'blue', // Deep elegant Blue is now the default!
+      pathway,
+      baselineDrinks,
+      targetQuitDate
+    };
+
+    triggerSave(newProfile);
+    if (soundEnabled) playPleasantChime('success');
+  };
+
+  // Reset entire start date (overall sobriety timeline reset requested manually by relapse)
+  const handleResetStartDate = () => {
+    if (!profile) return;
+    const todayStr = getFormattedDate(simDate);
+    const updated: UserProfile = {
+      ...profile,
+      startDate: todayStr,
+      resetDate: todayStr, // Logs the manual date of resetting
+      // We preserve their logged prior history logs so they don't lose self-analyzing patterns!
+      // But active streak breaks and starts afresh from today
+    };
+    triggerSave(updated);
+    if (soundEnabled) playPleasantChime('alert');
+  };
+
+  // Graduate user to active sober streak pathway on demand
+  const handleGraduateToQuit = () => {
+    if (!profile) return;
+    const todayStr = getFormattedDate(simDate);
+    const updated: UserProfile = {
+      ...profile,
+      pathway: 'quit',
+      startDate: todayStr, // Active dry streak starts afresh from today
+    };
+    triggerSave(updated);
+    if (soundEnabled) playPleasantChime('success');
+    
+    // Launch celebratory milestone alert
+    setMilestoneCelebrated({
+      visible: true,
+      label: 'Sobriety Streak Activated!',
+      desc: 'Incredible success! You have completed your gradual taper reduction and officially locked in your continuous sober dry streak. Your neurological shield is active. We support you with every heartbeat!'
+    });
+  };
+
+  // Toggle checklist status log save
+  const handleSaveLog = (dayLog: DayLog, newlyAddedTrigger?: string) => {
+    if (!profile) return;
+
+    const updatedHistory = {
+      ...profile.history,
+      [dayLog.date]: dayLog
+    };
+
+    // Calculate active streak count to evaluate newly unlocked milestones
+    const tempProfile = { ...profile, history: updatedHistory };
+    const statsObj = calculateStreakAndJourney(tempProfile.startDate, updatedHistory, getFormattedDate(simDate));
+    const newlyAvailable = getUnlockedMilestones(statsObj.activeStreakCount);
+    
+    // Auto populate milestone completed array if not yet evaluated
+    const updatedCompleted = [...profile.completedMilestones];
+    newlyAvailable.forEach(mId => {
+      // If unlocked but not completed, we add to array to trigger Celebrate highlight!
+      if (!updatedCompleted.includes(mId)) {
+        // We will celebrate this milestone!
+      }
+    });
+
+    let updatedCustomTriggers = [...(profile.customTriggers || [])];
+    if (newlyAddedTrigger && !updatedCustomTriggers.includes(newlyAddedTrigger)) {
+      updatedCustomTriggers.push(newlyAddedTrigger);
+    }
+
+    const updatedProfile: UserProfile = {
+      ...profile,
+      history: updatedHistory,
+      completedMilestones: updatedCompleted,
+      customTriggers: updatedCustomTriggers
+    };
+
+    triggerSave(updatedProfile);
+    playPleasantChime('success');
+  };
+
+  // Milestone Celebration triggers modal
+  const handleClaimMilestone = (mId: string) => {
+    if (!profile) return;
+    
+    const milestoneDetails = {
+      '24h': { label: 'First 24 Hours', desc: 'Sober for a full day! Your brain dopamine levels begin re-sensitizing. You already avoided the toughest initial craving wave. Keep hydration high.' },
+      '3d': { label: '72 Hours Clean', desc: 'Critical physical withdrawals fade. Liver respiration and deeper REM sleep cycles are safely resuming. Incredible stamina!' },
+      '1w': { label: 'Honorable 1 Week', desc: 'Your immune system strengthens. Cognitive speed, emotional regulation, and neural balance are actively improving.' },
+      '1m': { label: '1 Month Landmark', desc: 'Liver fat deposits reduced by nearly 15%. Cardiovascular health, memory pathways, and physical glow return in full vigor.' },
+      '3m': { label: '90 Days Shield', desc: 'Serotonin production is fully normalized. Mental fatigue lifted. Safe habits have established deep, resilient roots.' },
+      '6m': { label: '6 Months Mastery', desc: 'A colossal achievement. Your cell biology is completely refreshed. Mental clarity and anxiety reduction are in supercharged territory.' },
+      '1y': { label: '1 Year Golden Era', desc: 'A complete orbit of life celebrated in supreme clarity. Absolute triumph of physical, mental, and neural independence.' }
+    };
+
+    const target = milestoneDetails[mId as keyof typeof milestoneDetails] || { label: 'Awesome Landmark', desc: 'Your progress is a beacon of hope. Continue building health, day by day!' };
+
+    setMilestoneCelebrated({
+      visible: true,
+      id: mId,
+      label: target.label,
+      desc: target.desc
+    });
+
+    // Save completed
+    const updatedCompleted = Array.from(new Set([...profile.completedMilestones, mId]));
+    triggerSave({
+      ...profile,
+      completedMilestones: updatedCompleted
+    });
+
+    if (soundEnabled) playPleasantChime('success');
+  };
+
+  // Generate encouraging text utilizing Gemini API proxy or default list
+  const handleTriggerEncouragement = async (isAuto: boolean = false) => {
+    if (!profile) return;
+
+    const statsObj = calculateStreakAndJourney(profile.startDate, profile.history, getFormattedDate(simDate));
+    const currentDayKey = getFormattedDate(simDate);
+    const currentDayLog = profile.history[currentDayKey];
+
+    try {
+      const res = await fetch("/api/generate-encouragement", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          streakInfo: {
+            days: statsObj.activeStreakCount,
+            weeks: statsObj.streak.weeks,
+            months: statsObj.streak.months,
+            startDate: profile.startDate
+          },
+          drinkHistory: (Object.values(profile.history) as DayLog[]).slice(-5).map(h => ({ date: h.date, status: h.status })),
+          currentDayLog: currentDayLog
+        })
+      });
+
+      const data = await res.json();
+      const encouragementText = data.text || DEFAULT_ENCOURAGEMENTS[Math.floor(Math.random() * DEFAULT_ENCOURAGEMENTS.length)];
+
+      const newEnc: Encouragement = {
+        id: Math.random().toString(36).substring(7),
+        content: encouragementText,
+        sentAt: simDate.toISOString(),
+        targetHour: encouragementTarget.hour,
+        targetMinute: encouragementTarget.minute,
+        read: false
+      };
+
+      const updatedEncouragements = [newEnc, ...profile.encouragements].slice(0, 40); // Keep last 40 alerts
+
+      triggerSave({
+        ...profile,
+        encouragements: updatedEncouragements
+      });
+
+      const walkSms = profile.encouragementDeliverSms !== false;
+      const walkPush = profile.encouragementDeliverPush !== false;
+
+      if (walkSms) {
+        setSmsToast({ visible: true, text: encouragementText });
+      }
+      if (walkPush) {
+        setEncouragementPushToast({ visible: true, text: encouragementText });
+      }
+
+      if (soundEnabled) {
+        if (walkPush && !walkSms) {
+          playPleasantChime('alert');
+        } else {
+          playPleasantChime('text');
+        }
+      }
+
+      // Schedule next random or specific trigger target hour/minute for upcoming days
+      setEncouragementTarget(getNewEncouragementTarget(profile));
+      setEncouragementLoadedForDay(currentDayKey);
+
+    } catch (e) {
+      console.error("Gemini failed, loading fallback encouragement:", e);
+      // Fallback fallback text alert
+      const randomText = DEFAULT_ENCOURAGEMENTS[Math.floor(Math.random() * DEFAULT_ENCOURAGEMENTS.length)];
+      const newEnc: Encouragement = {
+        id: Math.random().toString(36).substring(7),
+        content: randomText,
+        sentAt: simDate.toISOString(),
+        targetHour: encouragementTarget.hour,
+        targetMinute: encouragementTarget.minute,
+        read: false
+      };
+      
+      triggerSave({
+        ...profile,
+        encouragements: [newEnc, ...profile.encouragements].slice(0, 45)
+      });
+
+      const walkSms = profile.encouragementDeliverSms !== false;
+      const walkPush = profile.encouragementDeliverPush !== false;
+
+      if (walkSms) {
+        setSmsToast({ visible: true, text: randomText });
+      }
+      if (walkPush) {
+        setEncouragementPushToast({ visible: true, text: randomText });
+      }
+
+      if (soundEnabled) {
+        if (walkPush && !walkSms) {
+          playPleasantChime('alert');
+        } else {
+          playPleasantChime('text');
+        }
+      }
+      setEncouragementTarget(getNewEncouragementTarget(profile));
+      setEncouragementLoadedForDay(currentDayKey);
+    }
+  };
+
+  // Simulated virtual sandbox clock ticks
+  useEffect(() => {
+    if (simPaused) return;
+
+    const interval = setInterval(() => {
+      setSimMinutes((prevMin) => {
+        let nextMin = prevMin + 1;
+        let nextHour = simHours;
+        let nextDate = new Date(simDate);
+
+        if (nextMin >= 60) {
+          nextMin = 0;
+          nextHour = simHours + 1;
+          if (nextHour >= 24) {
+            nextHour = 0;
+            // Advance simulated day calendar calendar!
+            nextDate.setDate(nextDate.getDate() + 1);
+          }
+          setSimHours(nextHour);
+        }
+
+        const dayKey = getFormattedDate(nextDate);
+
+        // 1. Evaluate custom scheduled Check-in reminder (Tracking reminders)
+        if (profile && profile.reminderEnabled !== false) {
+          const [remHour, remMin] = (profile.reminderTime || "20:00").split(':').map(Number);
+          if (nextHour === remHour && nextMin === remMin) {
+            // Instant notification popup alerts
+            setCheckInToast({
+              visible: true,
+              dateStr: getFormattedDate(nextDate),
+              timeStr: `${String(nextHour).padStart(2, '0')}:${String(nextMin).padStart(2, '0')}`
+            });
+            if (soundEnabled) playPleasantChime('alert');
+          }
+        }
+
+        // 2. Evaluate scheduled random or specific Encouragement SMS text
+        const encouragementEnabled = profile && profile.encouragementNotificationEnabled !== false;
+        if (
+          encouragementEnabled &&
+          nextHour === encouragementTarget.hour && 
+          nextMin === encouragementTarget.minute && 
+          encouragementLoadedForDay !== dayKey
+        ) {
+          handleTriggerEncouragement(true);
+        }
+
+        // 3. Evaluate Daily Tip Reminder
+        const tipsEnabled = profile && profile.tipsNotificationEnabled !== false;
+        let tipsTimeStr = (profile && profile.tipsNotificationTime) || "09:00";
+        if (profile && profile.tipsNotificationDays) {
+          const DAYS_OF_WEEK = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+          const simulatedDayName = DAYS_OF_WEEK[nextDate.getDay()];
+          if (profile.tipsNotificationDays[simulatedDayName]) {
+            tipsTimeStr = profile.tipsNotificationDays[simulatedDayName];
+          }
+        }
+        if (tipsEnabled) {
+          const [tipHour, tipMin] = tipsTimeStr.split(':').map(Number);
+          if (nextHour === tipHour && nextMin === tipMin && tipsLoadedForDay !== dayKey) {
+            const d = new Date(nextDate);
+            const dateNum = d.getDate();
+            const monthNum = d.getMonth() + 1;
+            const index = (dateNum * 7 + monthNum * 13) % STATIC_SOBRIETY_TIPS.length;
+            const tip = STATIC_SOBRIETY_TIPS[index] || STATIC_SOBRIETY_TIPS[0];
             
-            <h2 id="streak-main-count" class="text-4xl font-extrabold text-slate-800 font-display mt-2">0 Days</h2>
-            <p id="streak-descriptor" class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Active Dry Sobriety Streak</p>
+            setTipsToast({
+              visible: true,
+              title: tip.title,
+              content: tip.content
+            });
+            setTipsLoadedForDay(dayKey);
+            if (soundEnabled) playPleasantChime('alert');
+          }
+        }
 
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-6 w-full mt-6 max-w-2xl border-t border-slate-50 pt-5 text-left">
-              <div>
-                <span class="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Total in Recovery</span>
-                <span id="stat-days-recovery" class="text-base font-extrabold text-slate-700 block mt-0.5">0 Days</span>
-              </div>
-              <div>
-                <span class="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Dry/Sober Days</span>
-                <span id="stat-days-sober" class="text-base font-extrabold text-slate-700 block mt-0.5">0 Days</span>
-              </div>
-              <div>
-                <span class="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Accumulated Savings</span>
-                <span id="stat-savings" class="text-base font-extrabold text-emerald-600 block mt-0.5">$0</span>
-              </div>
-              <div>
-                <span class="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Biological Repair</span>
-                <span id="stat-healing-progress" class="text-base font-extrabold text-blue-600 block mt-0.5">0%</span>
+        // Update active simulated date object
+        nextDate.setHours(nextHour, nextMin, 0, 0);
+        setSimDate(nextDate);
+
+        return nextMin;
+      });
+    }, 1500); // 1.5 seconds per virtual minute when unpaused
+
+    return () => clearInterval(interval);
+  }, [simPaused, simHours, simDate, profile, encouragementTarget, encouragementLoadedForDay, tipsLoadedForDay, soundEnabled]);
+
+  // Handle fast hour advances quickly for developers review
+  const handleFastForwardHour = () => {
+    let nextHour = simHours + 1;
+    let nextDate = new Date(simDate);
+
+    if (nextHour >= 24) {
+      nextHour = 0;
+      nextDate.setDate(nextDate.getDate() + 1);
+    }
+    setSimHours(nextHour);
+    
+    const currentDayKey = getFormattedDate(nextDate);
+
+    // Evaluate milestone or triggers under hour change
+    if (profile && profile.reminderEnabled !== false) {
+      const [remHour] = (profile.reminderTime || "20:00").split(':').map(Number);
+      if (nextHour === remHour) {
+        setCheckInToast({
+          visible: true,
+          dateStr: getFormattedDate(nextDate),
+          timeStr: `${String(nextHour).padStart(2, '0')}:00`
+        });
+        if (soundEnabled) playPleasantChime('alert');
+      }
+    }
+
+    // Trigger random texts if fast forwarded past target
+    const encouragementEnabled = profile && profile.encouragementNotificationEnabled !== false;
+    if (encouragementEnabled && nextHour >= encouragementTarget.hour && encouragementLoadedForDay !== currentDayKey) {
+      handleTriggerEncouragement(true);
+    }
+
+    // Evaluate daily tip trigger under hour change
+    const tipsEnabled = profile && profile.tipsNotificationEnabled !== false;
+    let tipsTimeStr = (profile && profile.tipsNotificationTime) || "09:00";
+    if (profile && profile.tipsNotificationDays) {
+      const DAYS_OF_WEEK = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const simulatedDayName = DAYS_OF_WEEK[nextDate.getDay()];
+      if (profile.tipsNotificationDays[simulatedDayName]) {
+        tipsTimeStr = profile.tipsNotificationDays[simulatedDayName];
+      }
+    }
+    if (tipsEnabled) {
+      const [tipHour] = tipsTimeStr.split(':').map(Number);
+      if (nextHour >= tipHour && tipsLoadedForDay !== currentDayKey) {
+        const d = new Date(nextDate);
+        const dateNum = d.getDate();
+        const monthNum = d.getMonth() + 1;
+        const index = (dateNum * 7 + monthNum * 13) % STATIC_SOBRIETY_TIPS.length;
+        const tip = STATIC_SOBRIETY_TIPS[index] || STATIC_SOBRIETY_TIPS[0];
+        
+        setTipsToast({
+          visible: true,
+          title: tip.title,
+          content: tip.content
+        });
+        setTipsLoadedForDay(currentDayKey);
+        if (soundEnabled) playPleasantChime('alert');
+      }
+    }
+
+    nextDate.setHours(nextHour, simMinutes, 0, 0);
+    setSimDate(nextDate);
+    if (soundEnabled) playPleasantChime('click');
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50/50">
+        <div className="flex flex-col items-center gap-3">
+          <RefreshCw className="w-10 h-10 text-blue-600 animate-spin" />
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Hydrating state machine...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Not onboarded yet
+  if (!profile) {
+    return <OnboardingModal onSave={handleOnboardingSave} />;
+  }
+
+  // Calculate real-time active stats
+  const activeDateFormatted = getFormattedDate(simDate);
+  const statsObj = calculateStreakAndJourney(profile.startDate, profile.history, activeDateFormatted);
+
+  const SOBER_APP_THEMES = {
+    blue: {
+      text: 'text-blue-600',
+      selection: 'selection:bg-blue-500/10 selection:text-blue-900',
+      reminderBg: 'bg-linear-to-r from-blue-900 to-indigo-950 border-blue-500/30',
+      reminderBell: 'text-blue-400 fill-blue-400',
+      reminderTitle: 'text-blue-300',
+      reminderSub: 'text-blue-200/50',
+      scienceText: 'text-blue-400',
+      clockIcon: 'text-blue-400',
+      simTickBtn: 'bg-blue-600 hover:bg-blue-700 text-white border-blue-500',
+      headerIconBg: 'bg-blue-50 text-blue-600',
+      metaShield: 'text-blue-600'
+    },
+    emerald: {
+      text: 'text-emerald-600',
+      selection: 'selection:bg-emerald-500/10 selection:text-emerald-900',
+      reminderBg: 'bg-linear-to-r from-emerald-900 to-indigo-950 border-emerald-500/30',
+      reminderBell: 'text-emerald-400 fill-emerald-400',
+      reminderTitle: 'text-emerald-300',
+      reminderSub: 'text-emerald-200/50',
+      scienceText: 'text-emerald-400',
+      clockIcon: 'text-emerald-400',
+      simTickBtn: 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-500',
+      headerIconBg: 'bg-emerald-50 text-emerald-600',
+      metaShield: 'text-emerald-600'
+    },
+    indigo: {
+      text: 'text-indigo-600',
+      selection: 'selection:bg-indigo-500/10 selection:text-indigo-900',
+      reminderBg: 'bg-linear-to-r from-indigo-900 to-violet-950 border-indigo-500/30',
+      reminderBell: 'text-indigo-400 fill-indigo-400',
+      reminderTitle: 'text-indigo-300',
+      reminderSub: 'text-indigo-200/50',
+      scienceText: 'text-indigo-400',
+      clockIcon: 'text-indigo-400',
+      simTickBtn: 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-500',
+      headerIconBg: 'bg-indigo-50 text-indigo-600',
+      metaShield: 'text-indigo-600'
+    },
+    sunset: {
+      text: 'text-amber-600',
+      selection: 'selection:bg-amber-500/10 selection:text-amber-900',
+      reminderBg: 'bg-linear-to-r from-amber-900 to-rose-950 border-amber-500/30',
+      reminderBell: 'text-amber-400 fill-amber-400',
+      reminderTitle: 'text-amber-300',
+      reminderSub: 'text-amber-200/50',
+      scienceText: 'text-amber-400',
+      clockIcon: 'text-amber-400',
+      simTickBtn: 'bg-amber-600 hover:bg-amber-700 text-white border-amber-500',
+      headerIconBg: 'bg-amber-50 text-amber-600',
+      metaShield: 'text-amber-600'
+    },
+    purple: {
+      text: 'text-purple-600',
+      selection: 'selection:bg-purple-500/10 selection:text-purple-900',
+      reminderBg: 'bg-linear-to-r from-purple-900 to-indigo-950 border-purple-500/30',
+      reminderBell: 'text-purple-400 fill-purple-400',
+      reminderTitle: 'text-purple-300',
+      reminderSub: 'text-purple-200/50',
+      scienceText: 'text-purple-400',
+      clockIcon: 'text-purple-400',
+      simTickBtn: 'bg-purple-600 hover:bg-purple-700 text-white border-purple-500',
+      headerIconBg: 'bg-purple-50 text-purple-600',
+      metaShield: 'text-purple-600'
+    }
+  };
+
+  const currentTheme = SOBER_APP_THEMES[profile.colorTheme || 'blue'] || SOBER_APP_THEMES.blue;
+
+  return (
+    <div className={`min-h-screen bg-slate-50/50 text-slate-800 font-sans ${currentTheme.selection} pb-12`}>
+      {/* Visual in-app mock push notification banners (alerts reminder triggers) */}
+      <AnimatePresence>
+        {checkInToast && checkInToast.visible && (
+          <motion.div
+            initial={{ opacity: 0, y: -80, scale: 0.95 }}
+            animate={{ opacity: 1, y: 16, scale: 1 }}
+            exit={{ opacity: 0, y: -40, scale: 0.95 }}
+            className={`fixed top-4 left-4 right-4 md:left-auto md:right-4 md:w-96 z-50 p-4 border text-white rounded-2xl shadow-2xl flex gap-3 cursor-pointer ${currentTheme.reminderBg}`}
+            onClick={() => setCheckInToast(null)}
+          >
+            <Bell className={`w-5 h-5 ${currentTheme.reminderBell} animate-bounce mt-0.5`} />
+            <div className="flex-1">
+              <span className={`text-xs font-extrabold uppercase tracking-widest ${currentTheme.reminderTitle} block`}>Sobriety Reminder</span>
+              <p className="text-xs font-semibold leading-relaxed mt-1">
+                It's {checkInToast.timeStr}! Honor your dedication. Register check-in state for {checkInToast.dateStr} now.
+              </p>
+              <span className={`text-[10px] ${currentTheme.reminderSub} font-medium block mt-1.5 hover:underline`}>Tap banner to dismiss</span>
+            </div>
+          </motion.div>
+        )}
+
+        {smsToast && smsToast.visible && (
+          <motion.div
+            initial={{ opacity: 0, y: 80, scale: 0.95 }}
+            animate={{ opacity: 1, y: -16, scale: 1 }}
+            exit={{ opacity: 0, y: 40, scale: 0.95 }}
+            className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 z-50 p-4 bg-slate-900 border border-slate-800 text-white rounded-2xl shadow-2xl flex gap-3 cursor-pointer"
+            onClick={() => setSmsToast(null)}
+          >
+            <MessageSquare className="w-5 h-5 text-sky-400 fill-sky-400/20 translate-y-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <span className="text-xs font-extrabold uppercase tracking-widest text-sky-400 block">Encouragement SMS Received!</span>
+              <p className="text-xs font-semibold italic text-slate-100 leading-relaxed mt-1">
+                "{smsToast.text}"
+              </p>
+              <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-800 text-[9px] text-slate-500 font-bold uppercase tracking-wider">
+                <span>Simulated SMS Text</span>
+                <span>Just now</span>
               </div>
             </div>
+          </motion.div>
+        )}
 
-            <div class="flex flex-wrap items-center justify-center gap-3.5 mt-6 border-t border-slate-50 pt-5 w-full">
-              <div id="graduate-pathway-box" class="hidden">
-                <button onclick="graduateToDryAbstinence()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs uppercase shadow-sm transition-all flex items-center gap-1.5 cursor-pointer">
-                  <i data-lucide="shield" class="w-4 h-4"></i> Lock Dry Sobriety Continuous Streak
-                </button>
+        {encouragementPushToast && encouragementPushToast.visible && (
+          <motion.div
+            initial={{ opacity: 0, y: -80, scale: 0.95 }}
+            animate={{ opacity: 1, y: 16, scale: 1 }}
+            exit={{ opacity: 0, y: -40, scale: 0.95 }}
+            className={`fixed top-4 left-4 right-4 md:left-auto md:right-4 md:w-96 z-50 p-4 border text-white rounded-2xl shadow-2xl flex gap-3 cursor-pointer ${currentTheme.reminderBg}`}
+            onClick={() => setEncouragementPushToast(null)}
+          >
+            <Sparkles className="w-5 h-5 text-yellow-300 fill-yellow-300/10 mt-0.5 animate-pulse" />
+            <div className="flex-1">
+              <span className={`text-xs font-extrabold uppercase tracking-widest ${currentTheme.reminderTitle} block`}>Sober Push Encouragement</span>
+              <p className="text-xs font-semibold leading-relaxed mt-1 text-slate-100">
+                "{encouragementPushToast.text}"
+              </p>
+              <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-white/10 text-[9px] text-white/50 font-bold uppercase tracking-wider">
+                <span>In-app Push Alert</span>
+                <span>Just now</span>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {tipsToast && tipsToast.visible && (
+          <motion.div
+            initial={{ opacity: 0, y: -80, scale: 0.95 }}
+            animate={{ opacity: 1, y: 16, scale: 1 }}
+            exit={{ opacity: 0, y: -40, scale: 0.95 }}
+            className="fixed top-4 left-4 right-4 md:left-auto md:right-4 md:w-96 z-50 p-4 bg-amber-650 bg-amber-600 text-white rounded-2xl shadow-2xl border border-amber-500/30 flex gap-3 cursor-pointer"
+            onClick={() => setTipsToast(null)}
+          >
+            <Lightbulb className="w-5 h-5 text-amber-200 fill-amber-300/20 translate-y-0.5 flex-shrink-0 animate-pulse" />
+            <div className="flex-1">
+              <span className="text-xs font-extrabold uppercase tracking-widest text-amber-205 block">Sober Tip Received</span>
+              <span className="text-xs font-bold block text-white mt-1 leading-relaxed">
+                {tipsToast.title}
+              </span>
+              <p className="text-[11px] text-amber-50 leading-relaxed mt-0.5 font-medium/90">
+                {tipsToast.content}
+              </p>
+              <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-amber-500/20 text-[9px] text-amber-250 font-semibold uppercase tracking-wider">
+                <span>Simulated Daily Tips Feed</span>
+                <span>Just now</span>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {milestoneCelebrated && milestoneCelebrated.visible && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-3xl p-6 shadow-2xl max-w-lg w-full border border-slate-100 text-center relative overflow-hidden"
+            >
+              {/* Confetti styling background */}
+              <div className="absolute top-0 inset-x-0 h-2 bg-linear-to-r from-blue-500 via-yellow-400 to-indigo-500" />
+              
+              <div className="flex justify-center mb-4">
+                <span className="p-4 bg-yellow-50 rounded-full border border-yellow-100 text-amber-500 fill-amber-500/15">
+                  <Trophy className="w-12 h-12" />
+                </span>
               </div>
 
-              <button onclick="triggerPanicButton()" class="px-4 py-2 bg-gradient-to-r from-red-650 to-rose-600 hover:from-red-700 hover:to-rose-705 text-white font-extrabold rounded-xl text-xs uppercase shadow-xs transition-all flex items-center gap-1.5 cursor-pointer border border-red-500/20" title="Sequence emergency support group helpers">
-                <i data-lucide="phone-call" class="w-4 h-4 fill-white animate-bounce-slow"></i> Emergency Panic Lines
+              <span className="text-[10px] uppercase font-black text-amber-600 bg-amber-50 px-3 py-1 rounded-full tracking-wider inline-block">
+                Milestone Ceremony Achieved
+              </span>
+              
+              <h3 className="text-xl font-black font-sans text-slate-800 mt-3">
+                {milestoneCelebrated.label} Unlocked!
+              </h3>
+
+              <p className="text-sm text-slate-600 mt-4 leading-relaxed font-medium">
+                {milestoneCelebrated.desc}
+              </p>
+
+              <div className="mt-6 p-4 bg-slate-50 rounded-2xl border border-slate-100 text-[11px] text-slate-500 font-semibold leading-relaxed text-left flex gap-2">
+                <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <span>
+                  Sobriety is a cellular gift. Your cellular architecture is actively rejuvenating. Keep logging, keep tracking, keep winning.
+                </span>
+              </div>
+
+              <button
+                onClick={() => setMilestoneCelebrated(null)}
+                className="mt-6 w-full py-3 bg-slate-800 hover:bg-slate-950 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-md"
+              >
+                Honor with continued dedication
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Main Container */}
+      <main className="max-w-6xl mx-auto px-4 pt-6 space-y-6">
+        
+        {/* Navigation & Status Header */}
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 bg-white border border-slate-100 rounded-3xl shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="relative w-12 h-12 flex-shrink-0">
+              <img 
+                src={zeroProofLogo} 
+                alt="Zero Proof Logo"
+                className="w-full h-full object-cover rounded-2xl shadow-md border border-slate-100"
+                referrerPolicy="no-referrer"
+              />
+              <span className="absolute -bottom-1 -right-1 bg-emerald-500 border-2 border-white w-3.5 h-3.5 rounded-full" title="Active Protection Sync" />
+            </div>
+            <div>
+              <h1 className="text-xl font-extrabold text-slate-800 font-sans tracking-tight">Zero Proof</h1>
+              <p className="text-xs text-slate-400 font-semibold mt-0.5">
+                Physical restoration tracker • Start date: <span className="text-slate-700 bg-slate-100 font-mono font-extrabold text-[11px] px-1.5 py-0.5 rounded border border-slate-200/50">{profile.startDate}</span>
+              </p>
+            </div>
+          </div>
+
+          {/* Setup / Configuration triggers */}
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Tab switch navigation */}
+            <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-3xs mr-1">
+              <button
+                onClick={() => {
+                  setCurrentTab('dashboard');
+                  if (soundEnabled) playPleasantChime('click');
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${
+                  currentTab === 'dashboard'
+                    ? `${currentTheme.simTickBtn} shadow-sm`
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                Dashboard
+              </button>
+              <button
+                onClick={() => {
+                  setCurrentTab('settings');
+                  if (soundEnabled) playPleasantChime('click');
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${
+                  currentTab === 'settings'
+                    ? `${currentTheme.simTickBtn} shadow-sm`
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <Settings className="w-3.5 h-3.5" />
+                Settings
               </button>
             </div>
-          </div>
-        </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          
-          <!-- LEFT SIDE: LOGGER + GRAPH HISTORY -->
-          <div class="lg:col-span-7 space-y-6">
-            
-            <!-- CHECK-IN LOGGER CARD -->
-            <div class="p-6 bg-white border border-slate-100 rounded-2xl shadow-xs">
-              <div class="flex items-center justify-between pb-3.5 border-b border-slate-50">
-                <span class="text-xs font-extrabold text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                  <i data-lucide="calendar" class="w-4.5 h-4.5 text-theme-primary"></i>
-                  Register Check-In
-                </span>
-                <span id="check-in-target-day" class="text-[10px] font-extrabold text-theme-soft-text bg-theme-soft border border-theme-primary/10 px-2 py-0.5 rounded font-mono uppercase tracking-wider">-</span>
-              </div>
-
-              <!-- Form selectors depending on pathways -->
-              <div class="mt-4 space-y-4">
-                <!-- QUIT PATHWAY DIV -->
-                <div id="logger-form-quit" class="space-y-3.5">
-                  <span class="text-xs font-bold text-slate-700 block">Have you remained Dry and Sober today?</span>
-                  <div class="grid grid-cols-2 gap-3.5">
-                    <button type="button" id="btn-sober-yes" onclick="setLogSoberStatus(true)" class="py-3 border-2 border-emerald-500 bg-emerald-50/20 text-emerald-700 text-xs font-extrabold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2">
-                      <i data-lucide="shield" class="w-4.5 h-4.5 text-emerald-500"></i> Yes, Safe Dry Day
-                    </button>
-                    <button type="button" id="btn-sober-no" onclick="setLogSoberStatus(false)" class="py-3 border border-slate-200 text-slate-500 text-xs font-extrabold rounded-xl transition-all cursor-pointer hover:border-slate-350 flex items-center justify-center gap-2">
-                      <i data-lucide="alert-circle" class="w-4.5 h-4.5 text-slate-400"></i> No, Relapsed
-                    </button>
-                  </div>
-                </div>
-
-                <!-- REDUCE PATHWAY DIV -->
-                <div id="logger-form-reduce" class="hidden space-y-3">
-                  <span class="text-xs font-bold text-slate-700 block">Standard drinks consumed today:</span>
-                  <div class="flex items-center gap-4">
-                    <button onclick="incrementDrinksLog(-1)" class="w-9 h-9 p-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-black transition-all cursor-pointer">-</button>
-                    <span id="logger-drinks-counter" class="text-xl font-black font-mono w-12 text-center text-slate-800">0</span>
-                    <button onclick="incrementDrinksLog(1)" class="w-9 h-9 p-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-black transition-all cursor-pointer">+</button>
-                    <span id="logger-reduce-limit-msg" class="text-[10px] text-amber-600 bg-amber-50 px-2.5 py-1 rounded font-bold uppercase tracking-wider">-</span>
-                  </div>
-                </div>
-
-                <!-- Common: Triggers Checkbox panel -->
-                <div class="space-y-2">
-                  <span class="text-xs font-bold text-slate-700 block">Select active craving triggers today:</span>
-                  <div id="triggers-checkboxes-box" class="flex flex-wrap gap-2 pt-1">
-                    <!-- populated dynamically -->
-                  </div>
-                  
-                  <!-- custom trigger input -->
-                  <div class="flex items-center gap-2 mt-2 pt-1">
-                    <input type="text" id="logger-custom-trigger-input" placeholder="Add custom trigger..." class="bg-slate-50 border border-slate-100 text-slate-700 text-[11px] px-3 py-1.5 rounded-xl focus:border-blue-300 focus:outline-none font-semibold flex-1" />
-                    <button onclick="submitCustomTrigger()" class="py-1.5 px-3 bg-slate-800 hover:bg-black text-white text-[10px] font-black uppercase rounded-lg transition-all cursor-pointer shrink-0">Add</button>
-                  </div>
-                </div>
-
-                <!-- Mood feedback scale -->
-                <div class="space-y-2">
-                  <span class="text-xs font-bold text-slate-700 block">Assess Mood Balance level:</span>
-                  <div class="flex items-center gap-3 bg-slate-50 p-2.5 rounded-xl border border-slate-100/65">
-                    <input type="range" id="logger-mood-slider" min="1" max="5" value="4" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-                    <div class="text-xs text-amber-500 font-extrabold flex gap-0.5" id="logger-mood-stars-badge">
-                      ★★★★☆
-                    </div>
-                  </div>
-                </div>
-
-                <button onclick="saveCurrentChecks()" class="w-full mt-2 py-3 bg-slate-850 hover:bg-slate-950 text-white font-extrabold text-xs tracking-wider uppercase rounded-xl transition-all shadow-xs cursor-pointer">Lock Daily Check-In</button>
-              </div>
-            </div>
-
-            <!-- HISTORY CHARTS GRAPH CONTAINER -->
-            <div class="p-6 bg-white border border-slate-100 rounded-2xl shadow-xs">
-              <div id="history-chart-container">
-                <!-- SVG Chart rendered dynamically -->
-              </div>
-            </div>
-          </div>
-
-          <!-- RIGHT SIDE: FEED + TIPS + CHECKS -->
-          <div class="lg:col-span-5 space-y-6">
-            
-            <!-- ENCOURAGEMENT FEED CARD -->
-            <div class="p-6 bg-white border border-slate-100 rounded-2xl shadow-xs flex flex-col h-[385px] justify-between">
-              <div>
-                <div class="flex items-center justify-between pb-3.5 border-b border-slate-50">
-                  <h3 class="text-xs font-bold text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                    <i data-lucide="message-square" class="w-4.5 h-4.5 text-indigo-500"></i>
-                    Encouragement Alerts Feed
-                  </h3>
-                  <span id="encouragement-badge" class="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded uppercase tracking-wider">SMS Online</span>
-                </div>
-                
-                <div id="encouragements-feed-list" class="mt-4 space-y-3 overflow-y-auto max-h-[260px] pr-1 no-scrollbar text-left text-xs font-medium">
-                  <!-- Messages populated in JS -->
-                </div>
-              </div>
-            </div>
-
-            <!-- DAILY TIPS CARD -->
-            <div class="p-6 bg-white border border-slate-100 rounded-2xl shadow-xs space-y-3 text-left">
-              <div class="flex items-center gap-2 pb-2.5 border-b border-slate-50">
-                <span class="p-2 bg-amber-50 text-amber-600 rounded-xl border border-amber-100">
-                  <i data-lucide="lightbulb" class="w-4 h-4"></i>
-                </span>
-                <div>
-                  <h3 class="text-xs font-extrabold uppercase text-slate-800 tracking-wider">Daily Recovery Tips</h3>
-                  <p class="text-[10px] text-slate-400 font-semibold leading-none mt-1">Behavioral coping guides</p>
-                </div>
-              </div>
-              <h4 id="tip-main-title" class="text-xs font-extrabold text-slate-700 leading-tight">Defuse the Cravings Wave</h4>
-              <p id="tip-main-content" class="text-[11px] text-slate-500 leading-relaxed font-semibold">Cravings typically peak within 15 minutes. Go for a 10-minute clear walk or drink carbonated water to shock nerves.</p>
-            </div>
-
-            <!-- MILESTONES ROADMAP CARD -->
-            <div class="p-6 bg-white border border-slate-100 rounded-2xl shadow-sm text-left">
-              <div class="flex items-center justify-between pb-3 border-b border-slate-50">
-                <h3 class="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1">
-                  <i data-lucide="shield" class="w-4 h-4 text-theme-primary"></i> Physical Milestone Roadmap
-                </h3>
-              </div>
-              
-              <div id="milestones-list-container" class="mt-4 space-y-3 max-h-[350px] overflow-y-auto pr-1">
-                <!-- Milestones checklist dynamically injected here with Claim controls -->
-              </div>
-            </div>
-
-            <!-- SCIENCE FACT MINI CARD -->
-            <div class="p-5 bg-slate-900 border border-slate-800 rounded-2xl text-slate-205 relative overflow-hidden text-left">
-              <h4 class="text-xs font-bold text-emerald-450 uppercase tracking-widest flex items-center gap-1 mb-2">
-                <i data-lucide="shield" class="w-3.5 h-3.5"></i> Biological Rejuvenation
-              </h4>
-              <p class="text-[11px] leading-relaxed text-slate-350 font-medium">Inside 72 hours of complete dry status, blood pressure metrics stabilize. Cellular mitochondria density improves, supporting metabolic clearance pathways.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- RESOURCES TAB VIEW -->
-      <section id="tab-view-resources" class="hidden text-left space-y-6">
-        <div class="p-6 bg-white border border-slate-100 rounded-3xl shadow-xs">
-          <div class="flex items-center gap-3 pb-4 border-b border-slate-100">
-            <span class="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-100">
-              <i data-lucide="book-open" class="w-5 h-5"></i>
-            </span>
-            <div>
-              <h2 class="text-base font-extrabold text-slate-800">Recovery & Wellness Resource Center</h2>
-              <p class="text-xs text-slate-400 font-medium mt-0.5">Scientific box breathing guides, crisis hotlines, and cognitive tips</p>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-            <!-- Crisis Lifeline -->
-            <div class="p-5 bg-rose-50/45 border border-rose-100/50 rounded-2xl space-y-3">
-              <h3 class="text-xs font-extrabold text-rose-800 uppercase tracking-wider flex items-center gap-1.5 col-span-2">
-                <i data-lucide="phone-call" class="w-4 h-4 text-rose-500 shrink-0"></i> Immediate Free crisis Hotlines
-              </h3>
-              <div class="space-y-3">
-                <div class="flex justify-between items-center p-3 bg-white border border-rose-100 rounded-xl">
-                  <div>
-                    <span class="text-xs font-bold text-slate-800 block">SAMHSA National Helpline</span>
-                    <span class="text-[10px] text-slate-400 block mt-0.5 font-medium">Confidential support lines</span>
-                  </div>
-                  <a href="tel:18006624357" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-extrabold rounded-xl text-[10px] uppercase">Call</a>
-                </div>
-                <div class="flex justify-between items-center p-3 bg-white border border-rose-100 rounded-xl">
-                  <div>
-                    <span class="text-xs font-bold text-slate-800 block">988 Suicide & Crisis lifeline</span>
-                    <span class="text-[10px] text-slate-400 block mt-0.5 font-medium">Interactive live chatting</span>
-                  </div>
-                  <a href="tel:988" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-extrabold rounded-xl text-[10px] uppercase">Call</a>
-                </div>
-              </div>
-            </div>
-
-            <!-- Box Breathing guide -->
-            <div class="p-5 bg-emerald-50/45 border border-emerald-100/50 rounded-2xl space-y-3">
-              <h3 class="text-xs font-extrabold text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
-                <i data-lucide="sparkles" class="w-4 h-4 text-emerald-500"></i> Interactive Box Breathing Guide
-              </h3>
-              <div class="p-3 bg-white border border-emerald-100 rounded-xl flex items-center gap-4">
-                <div class="w-12 h-12 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center font-bold text-xs" id="box-breathing-anim">4s</div>
-                <div>
-                  <span class="text-xs font-bold text-slate-700 block" id="box-breathing-status">Breath Normal</span>
-                  <span class="text-[10px] text-slate-400 block leading-snug mt-1 font-medium">Inhale 4s, hold 4s, exhale 4s, hold clean 4s. Helps calm high cravings instantly.</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- stages cards -->
-            <div class="p-5 bg-blue-50/45 border border-blue-100/50 rounded-2xl space-y-3 md:col-span-2">
-              <h3 class="text-xs font-extrabold text-blue-800 uppercase tracking-widest flex items-center gap-1.5">
-                <i data-lucide="shield" class="w-4 h-4 text-blue-500"></i> Cellular Restoration Milestones of Sobriety
-              </h3>
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5 pt-1">
-                <div class="p-3.5 bg-white border border-blue-100 rounded-xl">
-                  <span class="text-xs font-extrabold text-blue-800 block mb-1">72 Hours Core</span>
-                  <span class="text-[11px] text-slate-500 font-medium leading-relaxed block">Withdrawals fade. REM sleep restores. Hydration levels recover organically.</span>
-                </div>
-                <div class="p-3.5 bg-white border border-blue-100 rounded-xl">
-                  <span class="text-xs font-extrabold text-blue-800 block mb-1">1 Month Shield</span>
-                  <span class="text-[11px] text-slate-500 font-medium leading-relaxed block">Liver fat lowers. Dopamine pathways balance and stabilize to natural levels.</span>
-                </div>
-                <div class="p-3.5 bg-white border border-blue-100 rounded-xl">
-                  <span class="text-xs font-extrabold text-blue-800 block mb-1">6 Months Mastery</span>
-                  <span class="text-[11px] text-slate-500 font-medium leading-relaxed block">Microglia healing completed. Cardiovascular risk markers fall. Vitality improves.</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- CONTACTS TAB VIEW -->
-      <section id="tab-view-contacts" class="hidden text-left max-w-2xl mx-auto space-y-6">
-        <div class="p-6 bg-white border border-slate-100 rounded-3xl shadow-xs space-y-6">
-          <div class="flex items-center gap-3 pb-4 border-b border-slate-100">
-            <span class="p-2.5 bg-rose-50 text-rose-600 rounded-xl border border-rose-100 shadow-3xs">
-              <i data-lucide="users" class="w-5 h-5"></i>
-            </span>
-            <div>
-              <h2 class="text-lg font-bold text-slate-800">Support Team Contacts</h2>
-              <p class="text-xs text-slate-400 font-semibold mt-0.5">Manage details of sponsors or custom guard contacts</p>
-            </div>
-          </div>
-
-          <!-- Red Crisis Banner -->
-          <div class="p-4 bg-gradient-to-r from-red-600 via-rose-600 to-red-650 text-white rounded-3xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm relative overflow-hidden">
-            <div class="flex items-center gap-3.5">
-              <span class="p-3 bg-white/10 text-white rounded-2xl ring-4 ring-white/5 shrink-0">
-                <i data-lucide="phone-call" class="w-5 h-5 fill-white animate-pulse"></i>
-              </span>
-              <div>
-                <span class="text-[9px] uppercase font-black tracking-widest text-red-200">24/7 Crisis Support Helpline</span>
-                <h3 class="text-xs font-extrabold tracking-tight mt-0.5 flex items-center gap-1">
-                  988 Crisis Support Lines
-                  <span class="h-2 w-2 rounded-full bg-emerald-400 animate-ping"></span>
-                </h3>
-                <p class="text-[10px] text-red-100/90 font-medium max-w-xs mt-0.5">Free, completely confidential counseling calling support over 24/7 chat lines.</p>
-              </div>
-            </div>
-            <div class="flex items-center gap-2 z-10 shrink-0 w-full sm:w-auto justify-end">
-              <a href="tel:988" class="p-2.5 bg-white text-red-600 hover:bg-rose-55 rounded-xl text-center"><i data-lucide="phone-call" class="w-3.5 h-3.5 fill-current"></i></a>
-              <a href="sms:988?body=HELP" class="p-2.5 bg-white/10 text-white hover:bg-white/20 border border-white/5 rounded-xl text-center"><i data-lucide="message-square" class="w-3.5 h-3.5"></i></a>
-            </div>
-          </div>
-
-          <!-- SPONSOR CARD -->
-          <div class="p-5 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-between gap-4">
-            <div class="flex items-center gap-3.5">
-              <span class="p-3 bg-white text-indigo-505 rounded-xl font-black font-mono text-xs border border-slate-100 shadow-3xs flex-shrink-0">SP</span>
-              <div>
-                <span class="text-[9px] uppercase font-black tracking-wider text-slate-400 block mb-0.5">Designated Sponsor</span>
-                <h3 id="sponsor-card-name" class="text-xs font-extrabold text-slate-800">Sponsor</h3>
-                <p id="sponsor-card-phone" class="text-[10px] font-mono text-slate-400 font-bold mt-0.5">+15550199</p>
-              </div>
-            </div>
-            <div class="flex items-center gap-2">
-              <a id="sponsor-link-call" href="#" class="p-2 bg-white hover:bg-emerald-50 hover:text-emerald-600 border border-slate-150 rounded-xl transition-all shadow-3xs"><i data-lucide="phone-call" class="w-3.5 h-3.5 text-emerald-500 fill-current"></i></a>
-              <a id="sponsor-link-sms" href="#" class="p-2 bg-white hover:bg-indigo-50 hover:text-indigo-600 border border-slate-150 rounded-xl transition-all shadow-3xs"><i data-lucide="message-square" class="w-3.5 h-3.5 text-indigo-500"></i></a>
-            </div>
-          </div>
-
-          <!-- CUSTOM CONTACTS SECTION -->
-          <div class="space-y-3.5 pt-2">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-black text-slate-400 uppercase tracking-wider block">Custom Support Group (<span id="contacts-badge-count">0</span>/5)</span>
-              <span class="text-[9px] text-teal-600 bg-teal-50 border border-teal-100 px-2 py-0.5 rounded uppercase font-bold">Drag and Drop Enabled</span>
-            </div>
-
-            <div id="contacts-list" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <!-- custom contacts -->
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- SETTINGS TAB VIEW -->
-      <section id="tab-view-settings" class="hidden max-w-2xl mx-auto space-y-6 text-left">
-        
-        <!-- PALETTE SELECTOR -->
-        <div class="p-6 bg-white border border-slate-100 rounded-3xl shadow-xs space-y-4">
-          <div class="flex items-center gap-2.5 pb-3 border-b border-slate-100">
-            <span class="p-2 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-100 shadow-3xs">
-              <i data-lucide="palette" class="w-4.5 h-4.5"></i>
-            </span>
-            <div>
-              <h3 class="text-xs font-extrabold uppercase text-slate-800 tracking-wider">Appearance Selection</h3>
-              <p class="text-[10px] text-slate-400 font-semibold leading-normal mt-0.5">Choose application theme palette accents</p>
-            </div>
-          </div>
-
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <span class="text-xs font-bold text-slate-700 block">Workspace Theme Colour</span>
-              <span class="text-[10px] text-slate-400 block leading-snug mt-1 font-medium">Dynamically adjusts layouts, card rings, gradients, metrics and buttons.</span>
-            </div>
-            
-            <div class="flex items-center gap-1 px-3 py-1.5 bg-slate-50 border border-slate-150 rounded-xl shrink-0 w-full sm:w-auto justify-between">
-              <span class="text-[11px] font-bold text-slate-500 pl-1 mr-1">Palette:</span>
-              <select id="setting-color-theme" onchange="updateThemePaletteSelection()" class="bg-transparent font-extrabold text-[11.5px] text-slate-700 outline-none select-none cursor-pointer capitalize">
+            {/* Color Theme Selector */}
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-xl">
+              <Palette className="w-3.5 h-3.5 text-slate-400" />
+              <span className="text-[11px] font-bold text-slate-500">Theme:</span>
+              <select
+                value={profile.colorTheme || 'blue'}
+                onChange={(e) => triggerSave({ ...profile, colorTheme: e.target.value as any })}
+                className="bg-transparent font-bold text-[11px] text-slate-700 focus:outline-hidden cursor-pointer capitalize"
+                title="Active application theme accent"
+              >
                 <option value="blue">Sober Blue</option>
                 <option value="emerald">Emerald Mint</option>
                 <option value="indigo">Deep Indigo</option>
@@ -589,1535 +1079,261 @@
                 <option value="purple">Amethyst Purple</option>
               </select>
             </div>
+
+            {/* Custom check in notification time selector */}
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-xl">
+              <Clock className="w-3.5 h-3.5 text-slate-400" />
+              <span className="text-[11px] font-bold text-slate-500">Reminder at:</span>
+              <input
+                type="time"
+                value={profile.reminderTime}
+                onChange={(e) => triggerSave({ ...profile, reminderTime: e.target.value })}
+                className="bg-transparent font-bold text-[11px] text-slate-700 focus:outline-hidden cursor-pointer"
+                title="Sobriety check-in reminder hour"
+              />
+            </div>
+
+            {/* Audio Feedback state toggler */}
+            <button
+              onClick={() => setSoundEnabled(!soundEnabled)}
+              className="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-xl transition-all cursor-pointer"
+              title={soundEnabled ? "Disable acoustic micro-feedback" : "Enable acoustic micro-feedback"}
+            >
+              {soundEnabled ? (
+                <Volume2 className={`w-4 h-4 ${currentTheme.text}`} />
+              ) : (
+                <VolumeX className="w-4 h-4 text-slate-400" />
+              )}
+            </button>
           </div>
-        </div>
+        </header>
 
-        <!-- SUPPORT TEAM SETTINGS CARD EXPANDEE -->
-        <div class="p-6 bg-white border border-slate-100 rounded-3xl shadow-xs space-y-4">
-          <button onclick="toggleSettingsTeamExpand()" class="w-full flex items-center justify-between cursor-pointer outline-none select-none">
-            <div class="flex items-start gap-2.5">
-              <span class="p-2 bg-rose-50 text-rose-600 rounded-xl border border-rose-100 shrink-0">
-                <i data-lucide="users" class="w-4 h-4"></i>
-              </span>
-              <div class="text-left">
-                <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-800 flex items-center gap-1.5 mt-0.5">
-                  Support Team Settings
-                </h3>
-                <p class="text-[10px] text-slate-400 font-semibold mt-1 leading-normal">Configure emergency numbers, helper contacts, and direct dialing targets</p>
-              </div>
-            </div>
-            <span id="btn-team-expand-arrow" class="text-xs font-bold text-slate-500 bg-slate-50 border border-slate-100 hover:bg-slate-100 px-3 py-1 rounded-lg transition-all">Expand ▼</span>
-          </button>
-
-          <div id="settings-team-dropdown" class="hidden pt-4 border-t border-slate-50 space-y-6">
-            <!-- Sponsor inputs -->
-            <div class="space-y-3">
-              <span class="text-[9px] font-black text-indigo-600 uppercase tracking-widest block border-b border-indigo-50 pb-1.5">Configure Main Sponsor Details</span>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <div>
-                  <label class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Sponsor Full Name</label>
-                  <input type="text" id="setting-sponsor-name" placeholder="David L. (Sponsor)" class="w-full bg-slate-50 border border-slate-150 text-slate-700 text-xs px-3.5 py-2 rounded-xl focus:border-indigo-400 focus:outline-none font-semibold transition-all" />
-                </div>
-                <div>
-                  <label class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Sponsor Phone Number</label>
-                  <input type="text" id="setting-sponsor-phone" placeholder="+15550199" class="w-full bg-slate-50 border border-slate-150 text-slate-700 text-xs px-3.5 py-2 rounded-xl focus:border-indigo-400 focus:outline-none font-semibold transition-all" />
-                </div>
-              </div>
-              <button onclick="saveSponsorSettings()" class="py-2 px-4 bg-slate-800 hover:bg-black text-white text-[10px] font-extrabold uppercase rounded-lg transition-all cursor-pointer mt-1">Save Sponsor</button>
-            </div>
-
-            <!-- Custom Contacts inputs -->
-            <div class="space-y-4 pt-2">
-              <div class="flex items-center justify-between border-b border-rose-50 pb-2">
-                <span class="text-[9px] font-black text-rose-600 uppercase tracking-widest block">Add Support buddys (Up to 5 total)</span>
-                <!-- Web import fallback button -->
-                <button onclick="triggerInteractiveContactPick()" class="px-2.5 py-1 text-[10px] font-bold bg-emerald-600 hover:bg-emerald-505 text-white rounded-lg cursor-pointer">
-                  <i data-lucide="user-plus" class="w-3.5 h-3.5 inline mr-1"></i>Web Pick
-                </button>
-              </div>
-
-              <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col sm:flex-row items-end gap-3.5">
-                <div class="space-y-1 w-full flex-1">
-                  <label class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Buddy Full Name</label>
-                  <input type="text" id="setting-new-contact-name" placeholder="Sarah Buddy" class="w-full bg-white border border-slate-150 text-slate-700 text-xs px-3.5 py-2 rounded-xl focus:border-indigo-400 focus:outline-none font-semibold transition-all" />
-                </div>
-                <div class="space-y-1 w-full flex-1">
-                  <label class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Buddy Telephone Number</label>
-                  <input type="text" id="setting-new-contact-phone" placeholder="+15550188" class="w-full bg-white border border-slate-150 text-slate-705 text-xs px-3.5 py-2 rounded-xl focus:border-indigo-500 focus:outline-none font-semibold transition-all" />
-                </div>
-                <button onclick="submitNewSupportBuddy()" class="py-2.5 px-4 bg-indigo-600 hover:bg-indigo-755 text-white text-xs font-black uppercase rounded-xl transition-all shadow-3xs cursor-pointer truncate w-full sm:w-auto">Add</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- TIMELINES RESET AND NOTIFICATIONS SETTINGS -->
-        <div id="settings-notifications" class="p-6 bg-white border border-slate-100 rounded-3xl shadow-xs space-y-5">
-          <div class="flex items-center gap-2.5 pb-3 border-b border-slate-100">
-            <span class="p-2 bg-theme-soft text-theme-primary rounded-xl border border-theme-primary/10 shadow-3xs">
-              <i data-lucide="bell" class="w-4.5 h-4.5"></i>
+        {/* Developer Sandbox Dashboard Panel */}
+        <div className="p-4 bg-linear-to-r from-slate-900 to-indigo-950 text-white rounded-2xl shadow-lg border border-slate-800 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+          <div className="md:col-span-5 flex items-center gap-3">
+            <span className="p-2 bg-indigo-500/20 text-indigo-400 rounded-xl">
+              <Settings className="w-4 h-4 animate-spin-slow" />
             </span>
             <div>
-              <h3 class="text-xs font-extrabold uppercase text-slate-800 tracking-wider">Timings & Notification Schedules</h3>
-              <p class="text-[10px] text-slate-400 font-semibold leading-normal mt-0.5">Control daily alarms, scheduled ticks, and check-in times</p>
+              <span className="text-xs font-extrabold uppercase tracking-widest text-indigo-300 block">Developer Sandbox Control</span>
+              <p className="text-[11px] text-indigo-100/60 leading-normal font-medium mt-0.5">
+                Fast-forward simulated clock to easily test reminders or Gemini daily SMS alerts
+              </p>
             </div>
           </div>
 
-          <!-- Log reminders alarm selectors -->
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-2 border-b border-slate-50">
-            <div>
-              <span class="text-xs font-bold text-slate-700 block">Daily Logging Reminder Alarm</span>
-              <span class="text-[10px] text-slate-400 block leading-snug mt-1 font-medium">Triggers an in-app check-in alarm notification overlay to lock daily state metrics.</span>
+          {/* Sandbox Controls elements */}
+          <div className="md:col-span-7 flex flex-wrap items-center justify-end gap-3">
+            {/* Clock output */}
+            <div className="px-3.5 py-1.5 bg-black/40 rounded-xl border border-white/5 font-mono text-xs flex items-center gap-1.5">
+              <Clock className={`w-3.5 h-3.5 ${currentTheme.clockIcon}`} />
+              <span className="font-bold text-white text-[11px]">Sim Time:</span>
+              <span className="font-extrabold text-emerald-300 tracking-wider">
+                {String(simHours).padStart(2, '0')}:{String(simMinutes).padStart(2, '0')}
+              </span>
+              <span className="text-white/20">|</span>
+              <span className="text-slate-400 text-[10px] font-bold">{getFormattedDate(simDate)}</span>
             </div>
-            
-            <div class="flex items-center gap-3">
-              <input type="checkbox" id="setting-notify-log-enabled" onchange="updateNotificationsSettings()" class="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer" />
-              <input type="time" id="setting-notify-log-time" onchange="updateNotificationsSettings()" class="bg-slate-50 border border-slate-150 rounded-xl px-2.5 py-1 text-xs font-extrabold text-slate-700 outline-none" />
-            </div>
-          </div>
 
-          <!-- Daily Tips alerts toggle -->
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-2 border-b border-slate-50">
-            <div>
-              <span class="text-xs font-bold text-slate-700 block">Weekly Coping Tips schedule</span>
-              <span class="text-[10px] text-slate-400 block leading-snug mt-1 font-medium">Brings active behavioral science notes based on day schedules.</span>
-            </div>
-            <div class="flex items-center gap-3">
-              <input type="checkbox" id="setting-notify-tips-enabled" onchange="updateNotificationsSettings()" class="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer" />
-              <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Daily @ 09:00</span>
-            </div>
-          </div>
+            {/* Increment click speed modifiers */}
+            <div className="flex gap-1.5">
+              <button
+                onClick={handleFastForwardHour}
+                className="py-1.5 px-3 bg-white/10 hover:bg-white/20 text-white border border-white/5 hover:border-white/10 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                title="Fast forward 1 Hour to trigger reminders"
+              >
+                +1 Hour
+              </button>
 
-          <!-- Adjust custom starting timeline date -->
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-2 border-b border-slate-50">
-            <div>
-              <span class="text-xs font-bold text-slate-700 block">Adjust Recovery Start Date</span>
-              <span class="text-[10px] text-slate-400 block leading-snug mt-1 font-medium">Remodulates calendar milestones from a custom past date manually.</span>
-            </div>
-            <input type="date" id="setting-adjust-start-date" onchange="adjustProfileStartDate(this.value)" class="bg-slate-50 border border-slate-150 rounded-xl px-2.5 py-1 text-xs font-extrabold text-slate-700 outline-none cursor-pointer" />
-          </div>
+              <button
+                onClick={() => setSimPaused(!simPaused)}
+                className={`py-1.5 px-3 text-xs font-bold rounded-lg border cursor-pointer transition-colors ${
+                  simPaused
+                    ? `${currentTheme.simTickBtn}`
+                    : 'bg-amber-600 hover:bg-amber-700 text-white border-amber-500'
+                }`}
+              >
+                {simPaused ? '▶ Start Auto-Tick' : '⏸ Pause Clock'}
+              </button>
 
-          <!-- Timelines Relapse Emergency reset buttons -->
-          <div class="p-4 bg-rose-50/50 border border-rose-100 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div class="text-left">
-              <span class="text-xs font-extrabold text-rose-800 block">Relapse Reset Timelines</span>
-              <span class="text-[10px] text-rose-450 block leading-snug mt-1 font-semibold">Resets active sobriety dry streak to zero, keeping log checklists intact.</span>
+              <button
+                onClick={() => handleTriggerEncouragement()}
+                className="py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white border border-indigo-500 rounded-lg text-xs font-extrabold cursor-pointer transition-all flex items-center gap-1.5"
+                title="Generate and deliver a mock Gemini feedback message now"
+              >
+                <Sparkle className="w-3.5 h-3.5 text-indigo-200" /> Web text
+              </button>
             </div>
-            <button onclick="triggerResetTimelinesRelapse()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-extrabold rounded-xl text-[10px] uppercase shadow-sm transition-all cursor-pointer">Reset Sobriety Streak</button>
           </div>
         </div>
-      </section>
 
-    </div>
-  </div>
-
-  <script>
-    // CORE GLOBAL STATE PACKETS
-    let profile = null;
-    let currentTab = 'dashboard';
-    let soundEnabled = true;
-
-    // Sandbox virtual clock states
-    let simDate = new Date();
-    let simHours = 12;
-    let simMinutes = 0;
-    let simPaused = true;
-    let timerInterval = null;
-
-    // Daily alarm schedules and triggers records
-    let snoozeHours = 0;
-    let checkInToastTracked = false;
-    let encouragementTarget = { hour: 11, minute: 30 };
-    let encouragementTriggeredDay = '';
-    let tipsTriggeredDay = '';
-
-    // Selected state log values
-    let selectedCheckedSoberStatus = true; // Yes by default
-    let loggerDrinksValue = 0;
-
-    // HTML elements references
-    const appWrapper = document.getElementById('app-wrapper');
-    const onboardingOverlay = document.getElementById('onboarding-overlay');
-    const toastContainer = document.getElementById('toast-container');
-    const appContainer = document.getElementById('app-container');
-
-    // Milestones details
-    const MILESTONES = [
-      { id: '24h', label: 'First 24 Hours', days: 1, desc: 'Sober for a full day! Dopamine levels are re-sensitizing. You already bypassed initial craving triggers.' },
-      { id: '3d', label: '72 Hours Clean', days: 3, desc: 'Physical withdrawals diminish. REM sleep cycles and cellular respiration resume deeper repair waves.' },
-      { id: '1w', label: 'Honorable 1 Week', days: 7, desc: 'Immune cells recover. Cognitive speed, focus levels, and neurological stamina show supreme balance.' },
-      { id: '1m', label: '1 Month Landmark', days: 30, desc: 'Liver fat reduces by 15%. Cardiovascular markers and skin glow return in stellar proportions.' },
-      { id: '3m', label: '90 Days Shield', days: 90, desc: 'Serotonin normalizes fully. Sleep and memory restoration are locked in deep, comfortable ground.' },
-      { id: '6m', label: '6 Months Mastery', days: 180, desc: 'Biological healing completed. Cells are clean. Clarity and systemic anxiety reductions are fully stable.' },
-      { id: '1y', label: '1 Year Golden Era', days: 365, desc: 'Absolute personal sovereignty. Healthy independence celebrated over a full orbit of clear life.' }
-    ];
-
-    // Static coping tips catalog
-    const STATIC_SOBRIETY_TIPS = [
-      { title: "Defuse the Cravings Wave", content: "Cravings peak inside 15 minutes. Double-exhale slow or grab carbonated water to relax stress." },
-      { title: "Hydrate and Replenish Cells", content: "Alcohol depletes vitamins. Grab coconut water or direct electrolytes to support cellular respiration." },
-      { title: "Play the Tape Forward", content: "Sit with the real thought of waking up tomorrow feeling clarity vs chemical exhaustion." },
-      { title: "Review Sleep check-ins", content: "Use warm herbal tea in the evening. The brain is actively re-learning natural sleep cycles." },
-      { title: "The HALT Checkpoint", content: "Check if you are Hungry, Angry, Lonely, or Tired. Resolve the physical root first." }
-    ];
-
-    // Standard baseline encouragements
-    const DEFAULT_ENCOURAGEMENTS = [
-      "Keep holding your biological shield high. Clarity is a cellular victory.",
-      "72 hours clean reduces cardiac spikes! Your lungs and heart thank you today.",
-      "An intense craving wave typically lasts only 10 minutes. Go for a brisk walk.",
-      "Breathe in box cycles. Nourish your brain. Focus on locking today dry.",
-      "Text David or Sarah. Sharing an active trigger halves the cognitive exhaustion immediately."
-    ];
-
-    // Default triggers
-    const STAT_TRIGGERS = ["Stress", "Anxiety", "Social Event", "Boredom", "Sadness", "Exhaustion"];
-
-    // Synth synthesizer audio chime helper
-    function playSyntheticTone(type) {
-      if (!soundEnabled) return;
-      try {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        if (!AudioContext) return;
-        const ctx = new AudioContext();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-
-        if (type === 'success') {
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
-          osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.08); // E5
-          osc.frequency.setValueAtTime(783.99, ctx.currentTime + 0.16); // G5
-          osc.frequency.setValueAtTime(1046.50, ctx.currentTime + 0.24); // C6
-          gain.gain.setValueAtTime(0.12, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-          osc.start();
-          osc.stop(ctx.currentTime + 0.55);
-        } else if (type === 'alert') {
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(440, ctx.currentTime);
-          osc.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.12);
-          gain.gain.setValueAtTime(0.15, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-          osc.start();
-          osc.stop(ctx.currentTime + 0.45);
-        } else {
-          osc.type = 'triangle';
-          osc.frequency.setValueAtTime(1000, ctx.currentTime);
-          gain.gain.setValueAtTime(0.04, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04);
-          osc.start();
-          osc.stop(ctx.currentTime + 0.05);
-        }
-      } catch (err) {
-        // Muted securely inside iframe contexts
-      }
-    }
-
-    // Date formatter standard YYYY-MM-DD
-    function getFormattedDate(d) {
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    }
-
-    // Initialize application on DOM load
-    window.addEventListener('DOMContentLoaded', () => {
-      simDate = new Date();
-      simDate.setHours(12, 0, 0, 0); // Start sim clock at comfortable daytime
-      loadOrCreateUserData();
-    });
-
-    // Local profile hydration
-    function loadOrCreateUserData() {
-      let cached = localStorage.getItem('sobriety_profile_cache');
-      if (cached) {
-        try {
-          profile = JSON.parse(cached);
-        } catch(e) {
-          console.warn("Failed deserializing stored cache, rebuilding.", e);
-        }
-      }
-
-      if (profile && profile.startDate) {
-        // Enforce fallback structure
-        if (!profile.history) profile.history = {};
-        if (!profile.customTriggers) profile.customTriggers = [];
-        if (!profile.completedMilestones) profile.completedMilestones = [];
-        if (!profile.milestoneDates) profile.milestoneDates = {};
-        if (!profile.encouragements) profile.encouragements = [];
-        if (!profile.colorTheme) profile.colorTheme = 'blue';
-        if (!profile.pathway) profile.pathway = 'quit';
-        
-        applyActiveSessionProfile();
-      } else {
-        // Open onboarding screen
-        onboardingOverlay.classList.remove('hidden');
-        onboardingOverlay.classList.add('flex');
-        document.getElementById('onboarding-start-date').value = getFormattedDate(new Date());
-        document.getElementById('onboarding-quit-date').value = getFormattedDate(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000));
-      }
-    }
-
-    // Toggle onboarding pathway options elements
-    let selectedOnboardingPathway = 'quit';
-    function toggleOnboardingPathway(pw) {
-      selectedOnboardingPathway = pw;
-      const optQuit = document.getElementById('pw-option-quit');
-      const optReduce = document.getElementById('pw-option-reduce');
-      const taperFields = document.getElementById('onboarding-taper-fields');
-
-      if (pw === 'quit') {
-        optQuit.className = "border rounded-2xl p-3 flex flex-col justify-between h-20 cursor-pointer transition-all border-blue-500 bg-blue-50/30 font-medium relative";
-        optReduce.className = "border rounded-2xl p-3 flex flex-col justify-between h-20 cursor-pointer transition-all border-slate-200 hover:border-slate-300 bg-white font-medium relative";
-        taperFields.classList.add('hidden');
-      } else {
-        optQuit.className = "border rounded-2xl p-3 flex flex-col justify-between h-20 cursor-pointer transition-all border-slate-200 hover:border-slate-300 bg-white font-medium relative";
-        optReduce.className = "border rounded-2xl p-3 flex flex-col justify-between h-20 cursor-pointer transition-all border-emerald-500 bg-emerald-50/30 font-medium relative";
-        taperFields.classList.remove('hidden');
-      }
-      playSyntheticTone('click');
-    }
-
-    // Seed mock data records for demonstration
-    function generateMockHistory(startDateStr, daysCount) {
-      const history = {};
-      const start = new Date(startDateStr);
-      for (let i = 0; i < daysCount; i++) {
-        const d = new Date(start);
-        d.setDate(d.getDate() + i);
-        const key = getFormattedDate(d);
-        
-        // Randomly relapse on day 12 for high-fidelity visualization
-        const isRelapse = (i === 11 || i === 25);
-        history[key] = {
-          date: key,
-          status: isRelapse ? 'relapse' : 'sober',
-          drinksCount: isRelapse ? 4 : 0,
-          triggers: isRelapse ? ['Stress', 'Boredom'] : [],
-          mood: isRelapse ? 2 : 5
-        };
-      }
-      return history;
-    }
-
-    function generateTaperMockHistory(startDateStr, quitDateStr, baseline) {
-      const history = {};
-      const start = new Date(startDateStr);
-      const quit = new Date(quitDateStr);
-      const totalTaperDays = Math.max(1, Math.round((quit.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
-      
-      for (let i = 0; i <= totalTaperDays + 5; i++) {
-        const d = new Date(start);
-        d.setDate(d.getDate() + i);
-        const dayKey = getFormattedDate(d);
-        
-        const limitFloat = Math.max(0, baseline - (i * (baseline / totalTaperDays)));
-        const targetLimit = Math.round(limitFloat);
-        
-        let actualDrinks = targetLimit;
-        if (i === 5) actualDrinks += 2; // minor relapse indicator
-        if (i > totalTaperDays) actualDrinks = 0; // successfully quit!
-
-        history[dayKey] = {
-          date: dayKey,
-          status: actualDrinks === 0 ? 'sober' : 'reduction',
-          drinksCount: actualDrinks,
-          triggers: actualDrinks > targetLimit ? ['Anxiety'] : [],
-          mood: actualDrinks > targetLimit ? 3 : 4
-        };
-      }
-      return history;
-    }
-
-    // Submit onboarding wizard
-    function submitOnboarding() {
-      const sDate = document.getElementById('onboarding-start-date').value || getFormattedDate(new Date());
-      const seedMock = document.getElementById('onboarding-seed-mock').checked;
-      
-      let initialHistory = {};
-      let baseline = 0;
-      let quitDate = null;
-
-      if (selectedOnboardingPathway === 'reduce') {
-        baseline = parseInt(document.getElementById('onboarding-baseline-drinks').value) || 6;
-        quitDate = document.getElementById('onboarding-quit-date').value || getFormattedDate(new Date(Date.now() + 14*24*60*60*1000));
-        if (seedMock) {
-          initialHistory = generateTaperMockHistory(sDate, quitDate, baseline);
-        }
-      } else {
-        if (seedMock) {
-          initialHistory = generateMockHistory(sDate, Math.max(1, Math.round((Date.now() - new Date(sDate).getTime())/(1000*60*60*24)) + 15));
-        }
-      }
-
-      profile = {
-        startDate: sDate,
-        resetDate: null,
-        history: initialHistory,
-        reminderEnabled: true,
-        reminderTime: "20:00",
-        tipsNotificationEnabled: true,
-        tipsNotificationTime: "09:00",
-        customTriggers: [],
-        completedMilestones: [],
-        milestoneDates: {},
-        encouragements: [],
-        colorTheme: selectedOnboardingPathway === 'reduce' ? 'emerald' : 'blue',
-        pathway: selectedOnboardingPathway,
-        baselineDrinks: selectedOnboardingPathway === 'reduce' ? baseline : undefined,
-        targetQuitDate: selectedOnboardingPathway === 'reduce' ? quitDate : undefined
-      };
-
-      saveProfileToStorage();
-      onboardingOverlay.classList.remove('flex');
-      onboardingOverlay.classList.add('hidden');
-      
-      applyActiveSessionProfile();
-      playSyntheticTone('success');
-    }
-
-    // Save profile state securely
-    function saveProfileToStorage() {
-      if (profile) {
-        localStorage.setItem('sobriety_profile_cache', JSON.stringify(profile));
-        // Try push to live API backup safely
-        fetch('/api/profile', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(profile)
-        }).catch(() => {
-          // graceful local-only failure
-        });
-      }
-    }
-
-    // Switch tab triggers
-    function switchTab(tabId) {
-      currentTab = tabId;
-      
-      // Update tab buttons visually
-      const buttons = ['dashboard', 'resources', 'contacts', 'settings'];
-      buttons.forEach(id => {
-        const btn = document.getElementById(`tab-btn-${id}`);
-        if (id === tabId) {
-          btn.className = "flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all bg-theme-primary text-white shadow-sm cursor-pointer";
-        } else {
-          btn.className = "flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all text-slate-500 hover:text-slate-800 cursor-pointer";
-        }
-      });
-
-      // Update active view tabs
-      buttons.forEach(id => {
-        const view = document.getElementById(`tab-view-${id}`);
-        if (id === tabId) {
-          view.classList.remove('hidden');
-        } else {
-          view.classList.add('hidden');
-        }
-      });
-
-      playSyntheticTone('click');
-      if (tabId === 'dashboard') {
-        renderRecoveryMetrics();
-      } else if (tabId === 'contacts') {
-        renderContactsList();
-      } else if (tabId === 'settings') {
-        hydrateSettingsForm();
-      }
-    }
-
-    // Audio mute configuration
-    function toggleAudioMute() {
-      soundEnabled = !soundEnabled;
-      const icon = document.getElementById('audio-toggle-icon');
-      if (soundEnabled) {
-        icon.setAttribute('data-lucide', 'volume-2');
-        icon.className = "w-4 h-4 text-theme-primary";
-        playSyntheticTone('click');
-      } else {
-        icon.setAttribute('data-lucide', 'volume-x');
-        icon.className = "w-4 h-4 text-slate-400";
-      }
-      lucide.createIcons();
-    }
-
-    // Synchronize loaded profile on startup
-    function applyActiveSessionProfile() {
-      appWrapper.classList.remove('hidden');
-      
-      // Seed default variables and badge texts
-      document.getElementById('header-start-date-badge').innerText = profile.startDate;
-      
-      // Setup default color accents
-      appContainer.className = `min-h-screen bg-slate-50/50 text-slate-800 pb-12 transition-all theme-${profile.colorTheme || 'blue'}`;
-
-      // Initialize triggers checklist inputs
-      const userTriggers = Array.from(new Set([...STAT_TRIGGERS, ...(profile.customTriggers || [])]));
-      const container = document.getElementById('triggers-checkboxes-box');
-      container.innerHTML = userTriggers.map(trig => {
-        return `
-          <label class="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-205 rounded-xl text-[10.5px] font-bold text-slate-600 flex items-center gap-1.5 cursor-pointer">
-            <input type="checkbox" value="${trig}" class="w-3.5 h-3.5 text-blue-600 rounded border-slate-300 focus:ring-blue-500" />
-            <span>${trig}</span>
-          </label>
-        `;
-      }).join('');
-
-      // Setup initial clock values
-      const currentSimFormatted = getFormattedDate(simDate);
-      document.getElementById('sandbox-clock-date').innerText = currentSimFormatted;
-      document.getElementById('sandbox-clock-hours').innerText = `${String(simHours).padStart(2, '0')}:00`;
-
-      // Draw dashboard metrics
-      renderRecoveryMetrics();
-      renderEncouragementFeedList();
-      
-      // Standard lucide trigger
-      lucide.createIcons();
-    }
-
-    // CALCULATE DRY STREAK AND SAVINGS METRICS
-    function calculateSobrietyMetrics() {
-      if (!profile || !profile.startDate) return null;
-      
-      const start = new Date(profile.startDate);
-      const end = new Date(simDate);
-      
-      start.setHours(0,0,0,0);
-      end.setHours(0,0,0,0);
-      
-      const diffTime = Math.max(0, end.getTime() - start.getTime());
-      const totalDaysInRecovery = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
-      
-      // Count sober days and current consecutive streak day metrics
-      let activeStreakCount = 0;
-      let soberDaysCount = 0;
-      
-      // Walk day-by-day to find active streak breaks
-      let currentIter = new Date(start);
-      let streakAcc = 0;
-      
-      while (currentIter <= end) {
-        const iterKey = getFormattedDate(currentIter);
-        const log = profile.history[iterKey];
-        let dayIsSober = true;
-        
-        if (log) {
-          if (log.status === 'relapse' || (log.drinksCount !== undefined && log.drinksCount > 0)) {
-            dayIsSober = false;
-          }
-        }
-        
-        if (dayIsSober) {
-          streakAcc++;
-          soberDaysCount++;
-        } else {
-          streakAcc = 0; // Streak breaks on relapse
-        }
-        
-        currentIter.setDate(currentIter.getDate() + 1);
-      }
-      
-      activeStreakCount = streakAcc;
-      
-      return {
-        activeStreakCount,
-        soberDaysCount,
-        totalDaysInRecovery,
-        savings: soberDaysCount * 12,
-        healingPercentage: Math.min(100, Math.round((soberDaysCount / 365) * 100))
-      };
-    }
-
-    // UPDATE EXCELLENT METRIC BANNERS IN REAL-TIME
-    function renderRecoveryMetrics() {
-      const metrics = calculateSobrietyMetrics();
-      if (!metrics) return;
-
-      const dateStr = getFormattedDate(simDate);
-
-      // Main numbers
-      if (profile.pathway === 'reduce') {
-        document.getElementById('streak-descriptor').innerText = "Safe Taper Control Score";
-        document.getElementById('streak-main-count').innerText = `${metrics.soberDaysCount} Clear Days`;
-        document.getElementById('graduate-pathway-box').classList.remove('hidden');
-      } else {
-        document.getElementById('streak-descriptor').innerText = "Active Dry Sobriety Streak";
-        document.getElementById('streak-main-count').innerText = `${metrics.activeStreakCount} Day${metrics.activeStreakCount === 1 ? '' : 's'}`;
-        document.getElementById('graduate-pathway-box').classList.add('hidden');
-      }
-
-      document.getElementById('stat-days-recovery').innerText = `${metrics.totalDaysInRecovery} Day${metrics.totalDaysInRecovery === 1 ? '' : 's'}`;
-      document.getElementById('stat-days-sober').innerText = `${metrics.soberDaysCount} Day${metrics.soberDaysCount === 1 ? '' : 's'}`;
-      document.getElementById('stat-savings').innerText = `$${metrics.savings}`;
-      document.getElementById('stat-healing-progress').innerText = `${metrics.healingPercentage}%`;
-
-      // Set date target checklist log
-      document.getElementById('check-in-target-day').innerText = dateStr;
-
-      // Handle checkbox states and buttons inside daily logger form
-      const existingLog = profile.history[dateStr];
-      const soberYesBtn = document.getElementById('btn-sober-yes');
-      const soberNoBtn = document.getElementById('btn-sober-no');
-      
-      // Update form layouts depending on pathways
-      const formQuit = document.getElementById('logger-form-quit');
-      const formReduce = document.getElementById('logger-form-reduce');
-
-      if (profile.pathway === 'reduce') {
-        formQuit.classList.add('hidden');
-        formReduce.classList.remove('hidden');
-        
-        // Setup taper daily limits warning
-        const start = new Date(profile.startDate);
-        const quit = new Date(profile.targetQuitDate || dateStr);
-        const totalTaperDays = Math.max(1, Math.round((quit.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
-        const baseline = Number(profile.baselineDrinks || 6);
-        const elapsed = Math.max(0, Math.round((simDate.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
-        const targetLimit = Math.max(0, Math.round(baseline - (elapsed * (baseline / totalTaperDays))));
-        
-        document.getElementById('logger-reduce-limit-msg').innerText = `Taper limit today: ${targetLimit}`;
-        
-        if (existingLog) {
-          loggerDrinksValue = existingLog.drinksCount || 0;
-        } else {
-          loggerDrinksValue = 0;
-        }
-        document.getElementById('logger-drinks-counter').innerText = loggerDrinksValue;
-      } else {
-        formQuit.classList.remove('hidden');
-        formReduce.classList.add('hidden');
-        
-        if (existingLog) {
-          selectedCheckedSoberStatus = (existingLog.status === 'sober');
-        } else {
-          selectedCheckedSoberStatus = true;
-        }
-        updateSoberStatusLogsButtons();
-      }
-
-      // Checkbox resetting
-      const checkboxes = document.querySelectorAll('#triggers-checkboxes-box input[type="checkbox"]');
-      checkboxes.forEach(chk => {
-        chk.checked = false;
-        if (existingLog && existingLog.triggers) {
-          if (existingLog.triggers.includes(chk.value)) {
-            chk.checked = true;
-          }
-        }
-      });
-
-      // Mood slider resetting
-      const moodSlider = document.getElementById('logger-mood-slider');
-      if (existingLog && existingLog.mood) {
-        moodSlider.value = existingLog.mood;
-      } else {
-        moodSlider.value = 4;
-      }
-      updateMoodStarsBadge();
-
-      // Render chart SVG
-      renderHistoryChart();
-
-      // Refresh Milestones Roadmap checklist
-      renderMilestonesRoadmap(metrics.activeStreakCount);
-    }
-
-    // Submitting a custom craving trigger
-    function submitCustomTrigger() {
-      const input = document.getElementById('logger-custom-trigger-input');
-      const text = input.value.trim();
-      if (!text) return;
-
-      if (!profile.customTriggers) profile.customTriggers = [];
-      if (!profile.customTriggers.includes(text)) {
-        profile.customTriggers.push(text);
-        saveProfileToStorage();
-        applyActiveSessionProfile();
-        input.value = '';
-        playSyntheticTone('success');
-      }
-    }
-
-    // Toggle SOBER YES / NO button indicators
-    function setLogSoberStatus(isSober) {
-      selectedCheckedSoberStatus = isSober;
-      updateSoberStatusLogsButtons();
-      playSyntheticTone('click');
-    }
-
-    function updateSoberStatusLogsButtons() {
-      const yesBtn = document.getElementById('btn-sober-yes');
-      const noBtn = document.getElementById('btn-sober-no');
-      if (selectedCheckedSoberStatus) {
-        yesBtn.className = "py-3 border-2 border-emerald-500 bg-emerald-50/20 text-emerald-700 text-xs font-extrabold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2";
-        noBtn.className = "py-3 border border-slate-200 text-slate-500 text-xs font-extrabold rounded-xl transition-all cursor-pointer hover:border-slate-300 flex items-center justify-center gap-2";
-      } else {
-        yesBtn.className = "py-3 border border-slate-200 text-slate-500 text-xs font-extrabold rounded-xl transition-all cursor-pointer hover:border-slate-350 flex items-center justify-center gap-2";
-        noBtn.className = "py-3 border-2 border-rose-500 bg-rose-50/20 text-rose-700 text-xs font-extrabold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2";
-      }
-    }
-
-    // Increment drinks count logs
-    function incrementDrinksLog(mod) {
-      loggerDrinksValue = Math.max(0, loggerDrinksValue + mod);
-      document.getElementById('logger-drinks-counter').innerText = loggerDrinksValue;
-      playSyntheticTone('click');
-    }
-
-    // Refresh stars label output
-    function updateMoodStarsBadge() {
-      const val = parseInt(document.getElementById('logger-mood-slider').value);
-      const starsArr = ['☆','☆','☆','☆','☆'];
-      for (let i = 0; i < val; i++) starsArr[i] = '★';
-      document.getElementById('logger-mood-stars-badge').innerText = starsArr.join('');
-    }
-    document.getElementById('logger-mood-slider').addEventListener('input', updateMoodStarsBadge);
-
-    // SAVE INTERACTIVE CHECKLIST LOG
-    function saveCurrentChecks() {
-      const dateStr = getFormattedDate(simDate);
-      
-      // Get selected triggers
-      const activeTrigs = [];
-      const checkboxes = document.querySelectorAll('#triggers-checkboxes-box input[type="checkbox"]');
-      checkboxes.forEach(chk => {
-        if (chk.checked) activeTrigs.push(chk.value);
-      });
-
-      const moodVal = parseInt(document.getElementById('logger-mood-slider').value);
-
-      let dayStatus = 'sober';
-      let countDrinks = 0;
-
-      if (profile.pathway === 'reduce') {
-        countDrinks = loggerDrinksValue;
-        dayStatus = (countDrinks === 0) ? 'sober' : 'reduction';
-      } else {
-        dayStatus = selectedCheckedSoberStatus ? 'sober' : 'relapse';
-        countDrinks = selectedCheckedSoberStatus ? 0 : 4;
-      }
-
-      profile.history[dateStr] = {
-        date: dateStr,
-        status: dayStatus,
-        drinksCount: countDrinks,
-        triggers: activeTrigs,
-        mood: moodVal
-      };
-
-      // Hide active check-in alarms if checked in today
-      snoozeHours = 0;
-      checkInToastTracked = false;
-      document.getElementById('snooze-banner').classList.add('hidden');
-      document.getElementById("snooze-banner").classList.remove('flex');
-
-      saveProfileToStorage();
-      renderRecoveryMetrics();
-      playSyntheticTone('success');
-      showScreenNotification('Check-in Saved', `Log metrics locked securely for ${dateStr}! Your cellular shield holds tall!`, 'success');
-    }
-
-    // INTERACTIVE SVG CHART DRAWING SYSTEM
-    function renderHistoryChart() {
-      const container = document.getElementById('history-chart-container');
-      if (!container || !profile) return;
-
-      // Extract last 7 days of simulated history
-      const days = [];
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(simDate);
-        d.setDate(d.getDate() - i);
-        days.push(d);
-      }
-
-      let html = '';
-      if (profile.pathway === 'reduce') {
-        // Line chart actual vs limit values
-        const start = new Date(profile.startDate);
-        const quit = new Date(profile.targetQuitDate || simDate);
-        const duration = Math.max(1, Math.round((quit.getTime() - start.getTime()) / (1000*60*60*24)));
-        const baseline = Number(profile.baselineDrinks || 6);
-
-        const actualData = [];
-        const limitData = [];
-
-        days.forEach((day, index) => {
-          const dayKey = getFormattedDate(day);
-          const log = profile.history[dayKey];
-          const actualVal = log && log.drinksCount !== undefined ? log.drinksCount : 0;
-          
-          const elapsed = Math.max(0, Math.round((day.getTime() - start.getTime()) / (1000*60*60*24)));
-          const limitVal = Math.max(0, baseline - (elapsed * (baseline / duration)));
-          
-          actualData.push({ idx: index, name: day.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), val: actualVal });
-          limitData.push({ idx: index, val: parseFloat(limitVal.toFixed(1)) });
-        });
-
-        const width = 500;
-        const height = 180;
-        const padding = 25;
-        const maxScale = Math.max(baseline, ...actualData.map(d=>d.val)) || 4;
-
-        const getX = (i) => padding + (i * (width - 2*padding) / 6);
-        const getY = (val) => height - padding - (val * (height - 2*padding) / maxScale);
-
-        let pathActual = '';
-        let pathLimit = '';
-
-        actualData.forEach((d, i) => {
-          const x = getX(d.idx);
-          const y = getY(d.val);
-          if (i === 0) pathActual += `M ${x} ${y}`;
-          else pathActual += ` L ${x} ${y}`;
-        });
-
-        limitData.forEach((d, i) => {
-          const x = getX(d.idx);
-          const y = getY(d.val);
-          if (i === 0) pathLimit += `M ${x} ${y}`;
-          else pathLimit += ` L ${x} ${y}`;
-        });
-
-        html = `
-          <div class="space-y-4">
-            <div class="flex justify-between items-center">
-              <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">7-Day Taper Progress</span>
-              <div class="flex gap-3 text-[10px] font-bold">
-                <span class="flex items-center gap-1 text-slate-700 font-medium"><span class="w-2.5 h-2.5 rounded-full bg-theme-primary"></span> Actual Drinks</span>
-                <span class="flex items-center gap-1 text-amber-500 font-medium"><span class="w-2.5 h-0.5 border-t border-dashed border-amber-500"></span> Limit Profile</span>
+        {/* Dynamic Sobriety Stats displays */}
+        {currentTab === 'dashboard' ? (
+          <>
+            <SoberStreakCard 
+              streak={statsObj.streak}
+              journey={statsObj.journey}
+              activeStreakCount={statsObj.activeStreakCount}
+              totalDaysInRecovery={statsObj.totalDaysInRecovery}
+              soberDaysCount={statsObj.soberDaysCount}
+              colorTheme={profile.colorTheme || 'blue'}
+              pathway={profile.pathway}
+              baselineDrinks={profile.baselineDrinks}
+              targetQuitDate={profile.targetQuitDate}
+              startDate={profile.startDate}
+              simulatedDate={simDate}
+              todayLogDrinks={profile.history[activeDateFormatted]?.drinksCount !== undefined ? profile.history[activeDateFormatted].drinksCount : null}
+              todayLogged={!!profile.history[activeDateFormatted]}
+              onGraduateToQuit={handleGraduateToQuit}
+            />
+
+            {/* Main interactive segment splits */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              
+              {/* Logger column */}
+              <div className="lg:col-span-7 space-y-6">
+                <DailyLogger 
+                  onSaveLog={handleSaveLog}
+                  history={profile.history}
+                  simulatedDate={simDate}
+                  customTriggers={profile.customTriggers || []}
+                  colorTheme={profile.colorTheme || 'blue'}
+                  pathway={profile.pathway}
+                  baselineDrinks={profile.baselineDrinks}
+                  targetQuitDate={profile.targetQuitDate}
+                  startDate={profile.startDate}
+                />
+
+                {/* Graph Visualizations Panel */}
+                <HistoryChart 
+                  history={profile.history}
+                  startDateStr={profile.startDate}
+                  colorTheme={profile.colorTheme || 'blue'}
+                  simulatedDate={simDate}
+                />
+
+                {/* Home Screen Widgets display preview styles */}
+                <WidgetSimulator
+                  activeStreakCount={statsObj.activeStreakCount}
+                  config={profile.widgetConfig}
+                  onChangeConfig={(newCfg) => triggerSave({ ...profile, widgetConfig: newCfg })}
+                />
               </div>
-            </div>
-            <div class="relative overflow-x-auto select-none">
-              <svg viewBox="0 0 ${width} ${height}" class="w-full h-40">
-                <!-- Grid lines -->
-                <line x1="${padding}" y1="${getY(0)}" x2="${width - padding}" y2="${getY(0)}" stroke="#e2e8f0" stroke-width="1" />
-                <line x1="${padding}" y1="${getY(maxScale / 2)}" x2="${width - padding}" y2="${getY(maxScale / 2)}" stroke="#f1f5f9" stroke-width="1" stroke-dasharray="2" />
-                <line x1="${padding}" y1="${getY(maxScale)}" x2="${width - padding}" y2="${getY(maxScale)}" stroke="#f1f5f9" stroke-width="1" />
-                
-                <!-- Limit Taper Lines -->
-                <path d="${pathLimit}" fill="none" stroke="#f59e0b" stroke-width="2" stroke-dasharray="3" />
-                
-                <!-- Actual Drink Lines -->
-                <path d="${pathActual}" fill="none" stroke="var(--color-primary)" stroke-width="3" />
-                
-                <!-- Indicators Dots -->
-                ${actualData.map((pt, i) => {
-                  const x = getX(pt.idx);
-                  const y = getY(pt.val);
-                  const relapse = pt.val > limitData[i].val;
-                  return `
-                    <circle cx="${x}" cy="${y}" r="4" fill="${relapse ? '#ef4444' : 'var(--color-primary)'}" stroke="white" stroke-width="1.5" />
-                    <text x="${x}" y="${getY(0) + 14}" font-size="8.5" text-anchor="middle" font-weight="bold" fill="#64748b">${pt.name}</text>
-                    <text x="${x}" y="${y - 8}" font-size="8.5" text-anchor="middle" font-weight="extrabold" fill="${relapse ? '#ef4444' : '#1e293b'}">${pt.val}</text>
-                  `;
-                }).join('')}
-              </svg>
-            </div>
-          </div>
-        `;
-      } else {
-        // Daily block calendar grid for continuous dry recovery check-ins
-        html = `
-          <div class="space-y-4">
-            <span class="text-xs font-bold text-slate-400 uppercase tracking-widest block">7-Day Clear Sobriety Blocks</span>
-            <div class="grid grid-cols-7 gap-2.5 text-center">
-              ${days.map(day => {
-                const dayStr = getFormattedDate(day);
-                const log = profile.history[dayStr];
-                
-                let dayBg = 'bg-slate-50 text-slate-400 border-slate-100';
-                let label = 'No Log';
-                let icon = '-';
-                
-                if (log) {
-                  if (log.status === 'relapse' || log.drinksCount > 0) {
-                    dayBg = 'bg-rose-50 border-rose-200 text-rose-700 font-extrabold';
-                    label = `${log.drinksCount || 1} Drink(s)`;
-                    icon = '<i data-lucide="alert-circle" class="w-4.5 h-4.5 text-rose-500"></i>';
-                  } else {
-                    dayBg = 'bg-emerald-55 bg-emerald-50 text-emerald-700 font-extrabold';
-                    label = 'Clean Dry';
-                    icon = '<i data-lucide="shield" class="w-4.5 h-4.5 text-emerald-500"></i>';
-                  }
-                } else {
-                  // If date is within recovery start date, default mark as sober dry auto-prediction
-                  const startDateComp = new Date(profile.startDate);
-                  startDateComp.setHours(0,0,0,0);
-                  const dayComp = new Date(day);
-                  dayComp.setHours(0,0,0,0);
-                  
-                  if (dayComp >= startDateComp && dayComp <= new Date(simDate)) {
-                    dayBg = 'bg-emerald-50/45 border-emerald-100 text-emerald-600 font-semibold';
-                    label = 'Dry Auto';
-                    icon = '<i data-lucide="shield" class="w-4 h-4 text-emerald-400 opacity-60"></i>';
-                  }
-                }
-                return `
-                  <div class="p-3 border rounded-xl flex flex-col items-center justify-between gap-1.5 h-24 ${dayBg}">
-                    <span class="text-[9px] font-bold uppercase text-slate-400">${day.toLocaleDateString(undefined, { weekday: 'short' })}</span>
-                    <span class="text-xs font-mono font-bold leading-none">${day.getDate()}</span>
-                    <div class="h-5 flex items-center justify-center">${icon}</div>
-                    <span class="text-[8.5px] font-bold block truncate max-w-full">${label}</span>
+
+              {/* Alerts feed and checklists right column */}
+              <div className="lg:col-span-5 space-y-6">
+                       {/* Real-time Gemini daily encourage feed display on dashboard */}
+                <div className="p-6 bg-white border border-slate-100 rounded-2xl shadow-md">
+                  <div className="flex items-center justify-between pb-4 border-b border-slate-50">
+                    <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                      <MessageSquare className="w-4.5 h-4.5 text-indigo-500 fill-indigo-500/15" />
+                      Encouragement Alerts Feed
+                    </h3>
+                    <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-sm uppercase tracking-wider">
+                      {profile.encouragementNotificationEnabled === false ? (
+                        "Alerts Muted"
+                      ) : profile.encouragementMode === 'specific' ? (
+                        `Daily @ ${profile.encouragementTime || '12:00'}`
+                      ) : (
+                        `Random: ${profile.encouragementRangeStart || '10:00'} - ${profile.encouragementRangeEnd || '22:00'}`
+                      )}
+                    </span>
                   </div>
-                `;
-              }).join('')}
-            </div>
-          </div>
-        `;
-      }
-      
-      container.innerHTML = html;
-      lucide.createIcons();
-    }
 
-    // MILSTONES ROADMAP CHECKLIST GENERATOR
-    function renderMilestonesRoadmap(activeDays) {
-      const listContainer = document.getElementById('milestones-list-container');
-      if (!listContainer) return;
+                  {/* Message entries history */}
+                  <div className="mt-5 space-y-3 max-h-[290px] overflow-y-auto pr-1 no-scrollbar">
+                    {profile.encouragements.length === 0 ? (
+                      <div className="text-center py-6 px-3">
+                        <p className="text-xs text-slate-400 italic">No encouragements received yet.</p>
+                        <p className="text-[10px] text-slate-400 mt-1">
+                          Our system generates messages automatically as Simulated Time progresses through your day, or tap the sandbox text button on top to fetch one right now!
+                        </p>
+                      </div>
+                    ) : (
+                      profile.encouragements.map((item) => (
+                        <div 
+                          key={item.id} 
+                          className="p-3.5 bg-slate-50 border border-slate-100 rounded-xl relative overflow-hidden transition-all hover:bg-slate-50/85"
+                        >
+                          {/* Delivery target & channel indicators */}
+                          <div className="absolute top-3 right-3 flex items-center gap-1">
+                            {profile.encouragementDeliverSms !== false && (
+                              <span className="font-mono text-[7px] font-extrabold bg-sky-50 text-sky-600 px-1 py-0.5 rounded border border-sky-100 uppercase tracking-wider">
+                                SMS
+                              </span>
+                            )}
+                            {profile.encouragementDeliverPush !== false && (
+                              <span className="font-mono text-[7px] font-extrabold bg-teal-50 text-teal-600 px-1 py-0.5 rounded border border-teal-100 uppercase tracking-wider">
+                                Push
+                              </span>
+                            )}
+                            <span className="font-mono text-[7px] font-bold bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded-sm border border-slate-300/40 uppercase tracking-wider">
+                              {String(item.targetHour).padStart(2, '0')}:{String(item.targetMinute).padStart(2, '0')} Target
+                            </span>
+                          </div>
 
-      let html = '';
-      MILESTONES.forEach(m => {
-        const completed = profile.completedMilestones.includes(m.id);
-        const unlocked = activeDays >= m.days;
-        const rewardDate = profile.milestoneDates[m.id];
+                          <span className="text-[11px] font-semibold text-slate-700 block pr-28 leading-relaxed">
+                            "{item.content}"
+                          </span>
 
-        let stateHtml = '';
-        if (completed) {
-          stateHtml = `
-            <div class="shrink-0 flex flex-col items-end">
-              <span class="text-[9px] font-extrabold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-sm uppercase tracking-wider">Completed</span>
-              <span class="text-[8px] font-mono text-slate-400 block mt-0.5">${rewardDate || ''}</span>
-            </div>
-          `;
-        } else if (unlocked) {
-          stateHtml = `
-            <button onclick="claimPhysicalMilestone('${m.id}')" class="px-3 py-1 bg-yellow-500 hover:bg-yellow-600 text-slate-900 border border-yellow-400 font-extrabold rounded-lg text-[9px] uppercase tracking-wider transition-all cursor-pointer">Claim Certificate</button>
-          `;
-        } else {
-          stateHtml = `
-            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">${m.days - activeDays} Day${(m.days - activeDays) === 1 ? '' : 's'} Remaining</span>
-          `;
-        }
+                          <div className="text-[9px] text-slate-400 font-semibold block mt-2.5">
+                            Delivered on: {new Date(item.sentAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
 
-        html += `
-          <div class="p-3.5 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between gap-3.5 hover:bg-slate-50/70 transition-all">
-            <div class="flex items-center gap-2.5 min-w-0">
-              <span class="p-2.5 ${completed ? 'bg-yellow-50 text-yellow-500 border-yellow-100' : 'bg-slate-100 text-slate-400 border-slate-200'} rounded-xl border shrink-0">
-                <i data-lucide="${completed ? 'trophy' : 'shield'}" class="w-4.5 h-4.5"></i>
-              </span>
-              <div class="min-w-0">
-                <span class="text-xs font-extrabold text-slate-800 block line-clamp-1">${m.label}</span>
-                <span class="text-[9.5px] text-slate-400 block truncate font-medium mt-0.5">${m.desc}</span>
+                {/* Daily Sobriety Tips component */}
+                <DailyTipsCard 
+                  colorTheme={profile.colorTheme || 'blue'}
+                  simulatedDate={simDate}
+                  pathway={profile.pathway}
+                  activeStreakCount={statsObj.activeStreakCount}
+                  history={profile.history}
+                />
+
+                {/* Checkpoint checkpoints card milestone list */}
+                <MilestonesCard 
+                  activeStreakCount={statsObj.activeStreakCount}
+                  completedMilestones={profile.completedMilestones}
+                  onClaimMilestone={handleClaimMilestone}
+                  colorTheme={profile.colorTheme || 'blue'}
+                />
+
+                {/* Informational wellness references */}
+                <div className="p-6 bg-slate-900 text-white rounded-2xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-4 opacity-5">
+                    <Info className="w-24 h-24 text-white" />
+                  </div>
+                  <h3 className={`text-xs font-bold uppercase tracking-widest ${currentTheme.scienceText} flex items-center gap-1`}>
+                    <Shield className="w-3.5 h-3.5" /> Sobriety Science
+                  </h3>
+                  <p className="text-xs mt-3 leading-relaxed text-slate-300 font-medium font-sans">
+                    By choosing dry days, your neural dopamine pathways re-sensitize from artificial chemical surges. Blood pressure decreases within 72 hours, and gut microbiome begins normal synthesis within 1 week. Protect your body's clear future.
+                  </p>
+                </div>
               </div>
             </div>
-            ${stateHtml}
+          </>
+        ) : (
+          <div className="max-w-2xl mx-auto space-y-6">
+            {/* Notification triggers customization and timings card */}
+            <NotificationSettingsCard 
+              profile={profile}
+              onUpdateProfile={(updated) => {
+                triggerSave(updated);
+                setEncouragementTarget(getNewEncouragementTarget(updated));
+              }}
+              colorTheme={profile.colorTheme || 'blue'}
+              onResetStartDate={handleResetStartDate}
+              onUpdateStartDate={(newDate) => triggerSave({ ...profile, startDate: newDate })}
+              simulatedDate={simDate}
+            />
           </div>
-        `;
-      });
-
-      listContainer.innerHTML = html;
-      lucide.createIcons();
-    }
-
-    // CLAIM RECOVERY MILESTONE CEREMONY BUTTON CLICK
-    function claimPhysicalMilestone(id) {
-      const match = MILESTONES.find(m => m.id === id);
-      if (!match) return;
-
-      profile.completedMilestones.push(id);
-      profile.milestoneDates[id] = getFormattedDate(simDate);
-      saveProfileToStorage();
-
-      document.getElementById('milestone-modal-title').innerText = `${match.label} Unlocked!`;
-      document.getElementById('milestone-modal-desc').innerText = match.desc;
-      
-      const modal = document.getElementById('milestone-modal');
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
-
-      renderRecoveryMetrics();
-      playSyntheticTone('success');
-    }
-
-    function closeMilestoneModal() {
-      const modal = document.getElementById('milestone-modal');
-      modal.classList.remove('flex');
-      modal.classList.add('hidden');
-      playSyntheticTone('click');
-    }
-
-    // Graduate taper reduction pathway to formal complete Dry Shield timeline
-    function graduateToDryAbstinence() {
-      profile.pathway = 'quit';
-      profile.startDate = getFormattedDate(simDate); // active sober streak restarts
-      saveProfileToStorage();
-      applyActiveSessionProfile();
-      playSyntheticTone('success');
-      showScreenNotification('Dry Streak Activated!', 'Congratulations! You successfully graduated your safety taper reduction. Your continuous dry streak shield is active now!', 'success');
-    }
-
-    // ENCOURAGEMENT FEEDS GENERATION
-    function renderEncouragementFeedList() {
-      const feed = document.getElementById('encouragements-feed-list');
-      if (!feed) return;
-
-      if (!profile.encouragements || profile.encouragements.length === 0) {
-        feed.innerHTML = `
-          <div class="text-center py-6 px-2">
-            <span class="text-[11px] text-slate-400 italic block">No encouragements received yet.</span>
-            <span class="text-[10px] text-slate-405 block leading-normal mt-1 font-semibold">Alarms are automatically received as virtual Sim time advancements occur, or click "⚡ Mock Text" above to test.</span>
-          </div>
-        `;
-        return;
-      }
-
-      feed.innerHTML = profile.encouragements.map(item => {
-        return `
-          <div class="p-3 bg-slate-50 border border-slate-100 rounded-xl relative overflow-hidden transition-all">
-            <div class="absolute top-2.5 right-2 px-1.5 py-0.5 bg-sky-50 text-sky-600 border border-sky-100 rounded text-[7px] font-black uppercase tracking-widest font-mono">SMS</div>
-            <p class="text-slate-700 leading-normal pr-10">"${item.content}"</p>
-            <span class="text-[8.5px] text-slate-400 font-bold block mt-2">Delivered Sim Date: ${item.sentAt}</span>
-          </div>
-        `;
-      }).join('');
-    }
-
-    // SMS TRIGGER FROM GEMINI API OR FALLBACKS
-    async function triggerEncouragementAlert() {
-      const promptText = "Generate daily physical recovery encouragement alert";
-      
-      let encouragementText = '';
-      try {
-        const metrics = calculateSobrietyMetrics();
-        const res = await fetch("/api/generate-encouragement", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            streakInfo: { days: metrics.activeStreakCount, sDate: profile.startDate },
-            drinkHistory: [],
-            currentDayLog: null
-          })
-        });
-        if (res.ok) {
-          const json = await res.json();
-          encouragementText = json.text;
-        }
-      } catch(e) {
-        // running offline
-      }
-
-      if (!encouragementText) {
-        encouragementText = DEFAULT_ENCOURAGEMENTS[Math.floor(Math.random() * DEFAULT_ENCOURAGEMENTS.length)];
-      }
-
-      // Append to alerts profile state list
-      const alertTimeStr = `${String(simHours).padStart(2, '0')}:${String(simMinutes).padStart(2, '0')}`;
-      const newAlert = {
-        id: Math.random().toString(36).substring(7),
-        content: encouragementText,
-        sentAt: `${getFormattedDate(simDate)} ${alertTimeStr}`
-      };
-
-      if (!profile.encouragements) profile.encouragements = [];
-      profile.encouragements.unshift(newAlert);
-      
-      saveProfileToStorage();
-      renderEncouragementFeedList();
-      playSyntheticTone('alert');
-      showScreenNotification('Encouragement SMS Received', `"${encouragementText}"`, 'sms');
-    }
-
-    // TOAST NOTIFICATIONS DRAWER FEEDS
-    function showScreenNotification(title, content, styleType) {
-      const el = document.createElement('div');
-      el.className = "p-4 rounded-2xl border text-white shadow-2xl flex gap-3 pointer-events-auto transform transition-all translate-y-4 opacity-0 cursor-pointer max-w-sm grow";
-      
-      let themeBg = 'bg-slate-900 border-slate-800';
-      let icon = 'bell';
-      
-      if (styleType === 'success') {
-        themeBg = 'bg-emerald-650 bg-emerald-650/95 border-emerald-500/30 bg-emerald-600';
-        icon = 'shield';
-      } else if (styleType === 'alert') {
-        themeBg = 'bg-linear-to-r from-slate-900 to-indigo-950 border-blue-500/20 bg-indigo-950/85';
-        icon = 'clock';
-      } else if (styleType === 'sms') {
-        themeBg = 'bg-slate-900 border-slate-800';
-        icon = 'message-square';
-      }
-
-      el.classList.add(...themeBg.split(' '));
-      el.innerHTML = `
-        <div class="shrink-0 pt-0.5"><i data-lucide="${icon}" class="w-5 h-5 text-white"></i></div>
-        <div class="flex-1 space-y-1">
-          <span class="text-[10px] font-black uppercase tracking-widest text-slate-100 opacity-80 block">${title}</span>
-          <p class="text-xs font-semibold leading-relaxed leading-snug">${content}</p>
-        </div>
-        <button class="text-white hover:text-slate-100 font-extrabold focus:outline-none text-[11px] pl-1 shrink-0 select-none">✕</button>
-      `;
-
-      el.onclick = () => {
-        el.style.opacity = '0';
-        setTimeout(() => el.remove(), 250);
-      };
-
-      toastContainer.appendChild(el);
-      lucide.createIcons();
-
-      // Trigger animations
-      setTimeout(() => {
-        el.style.opacity = '1';
-        el.style.transform = 'translateY(0)';
-      }, 50);
-
-      // Dismiss automatically after 10s
-      setTimeout(() => {
-        if (el && el.parentNode) {
-          el.style.opacity = '0';
-          setTimeout(() => el.remove(), 250);
-        }
-      }, 10000);
-    }
-
-    // MOCK EMERGENCY PANIC TRIGGER CALL SEQUENCES
-    function triggerPanicButton() {
-      const sponsorPhoneVal = (profile.sponsorPhone || '5550199').trim();
-      const sponsorNameVal = profile.sponsorName || 'Sponsor';
-      
-      const customMatches = profile.customContacts || [];
-      const listToLaunch = [];
-
-      if (sponsorPhoneVal) {
-        listToLaunch.push({ name: sponsorNameVal, phone: sponsorPhoneVal });
-      }
-      customMatches.forEach(b => {
-        listToLaunch.push({ name: b.name, phone: b.phone });
-      });
-
-      if (listToLaunch.length === 0) {
-        alert("No Personal Support group contacts configured! Please set sponsor or buddy details in settings/contacts tabs.");
-        switchTab('settings');
-        toggleSettingsTeamExpand(true);
-        return;
-      }
-
-      playSyntheticTone('alert');
-      showScreenNotification('Panic Trigger Sequence', `Opening SMS messengers to ${listToLaunch.length} personal supporters...`, 'alert');
-
-      // Sequence standard sms body triggers
-      listToLaunch.forEach((contact, idx) => {
-        setTimeout(() => {
-          const bodyMsg = `Hey ${contact.name}, I am having an intense sobriety trigger craving and need someone to connect with right now. Can we talk? (Zero Proof Panic Trigger)`;
-          const link = `sms:${contact.phone.replace(/[^\d+]/g, '')}?body=${encodeURIComponent(bodyMsg)}`;
-          window.open(link, '_blank');
-        }, idx * 600);
-      });
-    }
-
-    // CONTACTS LISTING VIEW TAB
-    function renderContactsList() {
-      const parent = document.getElementById('contacts-list');
-      if (!parent) return;
-
-      const contactsArr = profile.customContacts || [];
-      document.getElementById('contacts-badge-count').innerText = contactsArr.length;
-
-      if (contactsArr.length === 0) {
-        parent.innerHTML = `
-          <div class="col-span-2 text-center py-10 bg-slate-50 border border-slate-150 border-dashed rounded-3xl">
-            <span class="p-3 bg-slate-100 text-slate-400 rounded-2xl border border-slate-200 inline-block">
-              <i data-lucide="users" class="w-6 h-6"></i>
-            </span>
-            <h4 class="text-xs font-bold text-slate-700 mt-2.5">No custom contacts added yet</h4>
-            <span class="text-[10px] text-slate-450 block leading-normal max-w-xs mx-auto mt-1 font-medium">Configure friends, sober buddies, or family phone lines under settings tab</span>
-          </div>
-        `;
-        return;
-      }
-
-      parent.innerHTML = contactsArr.map((buddy, index) => {
-        return `
-          <div 
-            draggable="true" 
-            ondragstart="handleContactDragStart(event, ${index})" 
-            ondragover="event.preventDefault()" 
-            oncontrolreorder="event.preventDefault()"
-            ondragend="handleContactDragEnd()"
-            ondrop="handleContactDrop(event, ${index})" 
-            class="p-4 bg-white border border-slate-100/80 rounded-2xl flex items-center justify-between gap-3 shadow-3xs cursor-move hover:shadow-2xs transition-shadow relative"
-          >
-            <div class="flex items-center gap-2.5 min-w-0">
-              <!-- Reorder handles -->
-              <span class="text-slate-300 hover:text-slate-400 cursor-grab shrink-0">
-                <i data-lucide="grip-vertical" class="w-4 h-4"></i>
-              </span>
-              <span class="p-2 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-mono shrink-0">C${index + 1}</span>
-              <div class="min-w-0">
-                <span class="text-xs font-extrabold text-slate-800 block truncate leading-none mb-1.5">${buddy.name}</span>
-                <span class="text-[10px] font-mono text-slate-415 block">${buddy.phone}</span>
-              </div>
-            </div>
-
-            <div class="flex items-center gap-1.5 shrink-0">
-              <a href="tel:${buddy.phone.replace(/[^\d+]/g, '')}" class="p-2 bg-slate-50 hover:bg-emerald-50 text-slate-450 hover:text-emerald-600 rounded-xl border border-slate-105"><i data-lucide="phone-call" class="w-3.5 h-3.5 fill-current"></i></a>
-              <a href="sms:${buddy.phone.replace(/[^\d+]/g, '')}?body=${encodeURIComponent('I need support right now.')}" class="p-2 bg-slate-50 hover:bg-indigo-50 text-slate-450 hover:text-indigo-600 rounded-xl border border-slate-105"><i data-lucide="message-square" class="w-3.5 h-3.5"></i></a>
-              <button onclick="deleteCustomContactBuddy('${buddy.id}')" class="p-2 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-500 rounded-xl border border-slate-105 cursor-pointer"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-            </div>
-          </div>
-        `;
-      }).join('');
-
-      // Refresh static sponsor card output on tab render
-      hydrateSponsorElementCard();
-      lucide.createIcons();
-    }
-
-    // HTML5 Drag & Drop reorder handlers
-    let draggedContactIdx = null;
-    function handleContactDragStart(ev, index) {
-      draggedContactIdx = index;
-      ev.dataTransfer.effectAllowed = "move";
-    }
-    function handleContactDragEnd() {
-      draggedContactIdx = null;
-    }
-    function handleContactDrop(ev, index) {
-      ev.preventDefault();
-      if (draggedContactIdx === null || draggedContactIdx === index) return;
-
-      const items = [...profile.customContacts];
-      const draggedItem = items[draggedContactIdx];
-      items.splice(draggedContactIdx, 1);
-      items.splice(index, 0, draggedItem);
-
-      profile.customContacts = items;
-      saveProfileToStorage();
-      renderContactsList();
-      playSyntheticTone('success');
-    }
-
-    // Sponsor cards render
-    function hydrateSponsorElementCard() {
-      const sponsorPhoneVal = (profile.sponsorPhone || '5550199').trim();
-      const sponsorNameVal = profile.sponsorName || 'Sponsor';
-
-      document.getElementById('sponsor-card-name').innerText = sponsorNameVal;
-      document.getElementById('sponsor-card-phone').innerText = sponsorPhoneVal;
-
-      document.getElementById('sponsor-link-call').href = `tel:${sponsorPhoneVal.replace(/[^\d+]/g, '')}`;
-      document.getElementById('sponsor-link-sms').href = `sms:${sponsorPhoneVal.replace(/[^\d+]/g, '')}?body=${encodeURIComponent('Hey ' + sponsorNameVal + ', I need support right now.')}`;
-    }
-
-    // Delete custom buddy contact card
-    function deleteCustomContactBuddy(id) {
-      profile.customContacts = (profile.customContacts || []).filter(c => c.id !== id);
-      saveProfileToStorage();
-      renderContactsList();
-      playSyntheticTone('click');
-    }
-
-    // HYDRATE SETTINGS VIEW FORM
-    function hydrateSettingsForm() {
-      document.getElementById('setting-color-theme').value = profile.colorTheme || 'blue';
-      
-      document.getElementById('setting-notify-log-enabled').checked = profile.reminderEnabled !== false;
-      document.getElementById('setting-notify-log-time').value = profile.reminderTime || "20:00";
-      document.getElementById('setting-notify-tips-enabled').checked = profile.tipsNotificationEnabled !== false;
-      
-      document.getElementById('setting-adjust-start-date').value = profile.startDate;
-      
-      document.getElementById('setting-sponsor-name').value = profile.sponsorName || 'Sponsor';
-      document.getElementById('setting-sponsor-phone').value = profile.sponsorPhone || '+15550199';
-    }
-
-    // Update notification alarms parameters
-    function updateNotificationsSettings() {
-      profile.reminderEnabled = document.getElementById('setting-notify-log-enabled').checked;
-      profile.reminderTime = document.getElementById('setting-notify-log-time').value;
-      profile.tipsNotificationEnabled = document.getElementById('setting-notify-tips-enabled').checked;
-      
-      saveProfileToStorage();
-      playSyntheticTone('success');
-    }
-
-    // Change accent aesthetics theme
-    function updateThemePaletteSelection() {
-      const selected = document.getElementById('setting-color-theme').value;
-      profile.colorTheme = selected;
-      saveProfileToStorage();
-      applyActiveSessionProfile();
-      playSyntheticTone('success');
-    }
-
-    // Settings group expander toggle
-    let settingsTeamExpanded = false;
-    function toggleSettingsTeamExpand(forceState) {
-      if (forceState !== undefined) {
-        settingsTeamExpanded = forceState;
-      } else {
-        settingsTeamExpanded = !settingsTeamExpanded;
-      }
-
-      const dropdown = document.getElementById('settings-team-dropdown');
-      const arrow = document.getElementById('btn-team-expand-arrow');
-
-      if (settingsTeamExpanded) {
-        dropdown.classList.remove('hidden');
-        arrow.innerText = 'Collapse ▲';
-      } else {
-        dropdown.classList.add('hidden');
-        arrow.innerText = 'Expand ▼';
-      }
-      playSyntheticTone('click');
-    }
-
-    // Save personal sponsor info
-    function saveSponsorSettings() {
-      profile.sponsorName = document.getElementById('setting-sponsor-name').value;
-      profile.sponsorPhone = document.getElementById('setting-sponsor-phone').value;
-      saveProfileToStorage();
-      hydrateSponsorElementCard();
-      playSyntheticTone('success');
-      showScreenNotification('Sponsor Saved', 'Designated recovery sponsor updated successfully!', 'success');
-    }
-
-    // Submit a custom dry buddy contact card
-    function submitNewSupportBuddy() {
-      const name = document.getElementById('setting-new-contact-name').value.trim();
-      const phone = document.getElementById('setting-new-contact-phone').value.trim();
-
-      if (!name || !phone) {
-        alert("Please specify Buddy Name and Telephone Contact details!");
-        return;
-      }
-
-      if (!profile.customContacts) profile.customContacts = [];
-      if (profile.customContacts.length >= 5) {
-        alert("A maximum of 5 custom contacts is permitted on direct dial pages.");
-        return;
-      }
-
-      const newBuddy = {
-        id: Date.now().toString(),
-        name,
-        phone
-      };
-
-      profile.customContacts.push(newBuddy);
-      saveProfileToStorage();
-      
-      // Clear inputs
-      document.getElementById('setting-new-contact-name').value = '';
-      document.getElementById('setting-new-contact-phone').value = '';
-
-      playSyntheticTone('success');
-      showScreenNotification('Buddy Added', `${name} successfully added to support group contacts!`, 'success');
-    }
-
-    // Interactively lookup device contact picker if browser supports it
-    async function triggerInteractiveContactPick() {
-      if (!profile.customContacts) profile.customContacts = [];
-      if (profile.customContacts.length >= 5) {
-        alert("Maximun 5 custom buddies reached!");
-        return;
-      }
-
-      try {
-        if (navigator.contacts && typeof navigator.contacts.select === 'function') {
-          const props = ['name', 'tel'];
-          const picked = await navigator.contacts.select(props, { multiple: false });
-          if (picked && picked.length > 0) {
-            const raw = picked[0];
-            const name = (raw.name && raw.name[0]) || 'Imported buddy';
-            const tel = (raw.tel && raw.tel[0]) || '';
-            if (!tel) return;
-
-            profile.customContacts.push({ id: Date.now().toString(), name, phone: tel });
-            saveProfileToStorage();
-            renderContactsList();
-            playSyntheticTone('success');
-          }
-        } else {
-          alert("A native contact picker is supported on select high-end mobile devices using Google Chrome. Please type details manually.");
-        }
-      } catch(err) {
-        console.warn("Contact lookup canceled or aborted", err);
-      }
-    }
-
-    // Manual profile starting date adjuster
-    function adjustProfileStartDate(newDateStr) {
-      if (!newDateStr) return;
-      profile.startDate = newDateStr;
-      document.getElementById('header-start-date-badge').innerText = newDateStr;
-      saveProfileToStorage();
-      renderRecoveryMetrics();
-      playSyntheticTone('success');
-    }
-
-    // Trigger relapse active streak recovery reset
-    function triggerResetTimelinesRelapse() {
-      if (confirm("Are you sure you want to reset your active continuous Dry streak? Your historical log charts will remain intact as clinical progress reference.")) {
-        const resetKey = getFormattedDate(simDate);
-        profile.startDate = resetKey;
-        profile.resetDate = resetKey;
-        
-        saveProfileToStorage();
-        renderRecoveryMetrics();
-        playSyntheticTone('alert');
-        showScreenNotification('Timeline Re-calibrated', `Dry streak reset to 0 representing new start for ${resetKey}! Holds firm, dry hours are ahead!`, 'alert');
-      }
-    }
-
-    // VIRTUAL SANDBOX TIME TICKS SIMULATION ENGINE
-    function toggleClockTick() {
-      simPaused = !simPaused;
-      const btn = document.getElementById('btn-toggle-clock');
-      if (simPaused) {
-        btn.innerText = "▶ Start Tick";
-        btn.className = "py-1.5 px-3 text-xs font-bold rounded-lg border border-theme-primary bg-theme-primary text-white hover:bg-theme-primary-hover transition-all cursor-pointer";
-        clearInterval(timerInterval);
-        timerInterval = null;
-      } else {
-        btn.innerText = "⏸ Pause Tick";
-        btn.className = "py-1.5 px-3 text-xs font-bold rounded-lg border border-amber-500 bg-amber-600 text-white hover:bg-amber-700 transition-all cursor-pointer";
-        
-        timerInterval = setInterval(() => {
-          advanceSimMinutes(1);
-        }, 1500); // 1.5 seconds per virtual minute
-      }
-      playSyntheticTone('click');
-    }
-
-    // Advance clock time increments
-    function fastForwardSimHour() {
-      advanceSimMinutes(60);
-      playSyntheticTone('click');
-    }
-
-    function advanceSimMinutes(minutes) {
-      simMinutes += minutes;
-      if (simMinutes >= 60) {
-        const extraHours = Math.floor(simMinutes / 60);
-        simMinutes = simMinutes % 60;
-        simHours += extraHours;
-        
-        if (simHours >= 24) {
-          const extraDays = Math.floor(simHours / 24);
-          simHours = simHours % 24;
-          simDate.setDate(simDate.getDate() + extraDays);
-          
-          // Day roll-overs reset snooze control
-          snoozeHours = 0;
-          checkInToastTracked = false;
-        }
-      }
-
-      // Sync outputs
-      const curFormattedDate = getFormattedDate(simDate);
-      document.getElementById('sandbox-clock-date').innerText = curFormattedDate;
-      document.getElementById('sandbox-clock-hours').innerText = `${String(simHours).padStart(2, '0')}:${String(simMinutes).padStart(2, '0')}`;
-
-      // 1. Evaluate logging alarms
-      const reminderEnabled = profile.reminderEnabled !== false;
-      const existingLog = profile.history[curFormattedDate];
-      if (reminderEnabled && !existingLog && !checkInToastTracked) {
-        const [remHour, remMin] = (profile.reminderTime || "20:00").split(':').map(Number);
-        const snoozeTargetHour = (remHour + snoozeHours) % 24;
-        
-        if (simHours === snoozeTargetHour && simMinutes === remMin) {
-          checkInToastTracked = true;
-          playSyntheticTone('alert');
-          showScreenNotification('Recovery Check-In Alarm', `Sim Time: ${snoozeTargetHour}:${String(remMin).padStart(2, '0')}! Please log dry status metrics for ${curFormattedDate}.`, 'alert');
-          
-          // Unhide log snooze controller banner
-          document.getElementById('snooze-banner').classList.remove('hidden');
-          document.getElementById('snooze-banner').classList.add('flex');
-          document.getElementById('snooze-banner-desc').innerText = `Your log reminder alerts are active. Snooze Delay: ${snoozeHours} Hr(s).`;
-        }
-      }
-
-      // 2. Evaluate encouragement alert timings
-      const encouragementEnabled = profile.encouragementNotificationEnabled !== false;
-      if (encouragementEnabled && simHours === encouragementTarget.hour && simMinutes === encouragementTarget.minute && encouragementTriggeredDay !== curFormattedDate) {
-        encouragementTriggeredDay = curFormattedDate;
-        triggerEncouragementAlert();
-        
-        // Pick new random target timing hour/minute for next alerts
-        encouragementTarget = { hour: Math.floor(Math.random() * 12) + 10, minute: Math.floor(Math.random() * 60) };
-      }
-
-      // 3. Evaluate Daily Tips schedule alarm
-      const tipsEnabled = profile.tipsNotificationEnabled !== false;
-      if (tipsEnabled && simHours === 9 && simMinutes === 0 && tipsTriggeredDay !== curFormattedDate) {
-        tipsTriggeredDay = curFormattedDate;
-        const index = (simDate.getDate() * 7 + (simDate.getMonth()+1) * 13) % STATIC_SOBRIETY_TIPS.length;
-        const tip = STATIC_SOBRIETY_TIPS[index] || STATIC_SOBRIETY_TIPS[0];
-        
-        document.getElementById('tip-main-title').innerText = tip.title;
-        document.getElementById('tip-main-content').innerText = tip.content;
-        
-        playSyntheticTone('alert');
-        showScreenNotification('Daily Tip Shared', `"${tip.title}"`, 'alert');
-      }
-
-      // Update visible stats charts dynamically if sandbox time moves
-      renderRecoveryMetrics();
-    }
-
-    // Snooze log check-in alarms by 1 hour
-    function snoozeCheckInReminders() {
-      snoozeHours++;
-      checkInToastTracked = false;
-      
-      const [remHour] = (profile.reminderTime || "20:00").split(':').map(Number);
-      const nextSnoozeHour = (remHour + snoozeHours) % 24;
-      
-      document.getElementById('snooze-banner-desc').innerText = `Check-in reminder snoozed. Next alert: ${nextSnoozeHour}:00.`;
-      playSyntheticTone('click');
-    }
-
-    function resetSnoozeDelay() {
-      snoozeHours = 0;
-      checkInToastTracked = false;
-      document.getElementById('snooze-banner').classList.add('hidden');
-      document.getElementById('snooze-banner').classList.remove('flex');
-      playSyntheticTone('click');
-    }
-
-    // Cognitive breathing helper animations cycle interval
-    let breathingStage = 0; // 0: Inhale, 1: Hold full, 2: Exhale, 3: Hold empty
-    setInterval(() => {
-      const bubble = document.getElementById('box-breathing-anim');
-      const label = document.getElementById('box-breathing-status');
-      if (!bubble) return;
-
-      breathingStage = (breathingStage + 1) % 4;
-      if (breathingStage === 0) {
-        bubble.innerText = "Inhale";
-        bubble.className = "w-12 h-12 rounded-lg bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center justify-center font-extrabold text-[10px] scale-110 transition-all duration-1000";
-        label.innerText = "Deeply Inhale (4s)";
-      } else if (breathingStage === 1) {
-        bubble.innerText = "Hold";
-        bubble.className = "w-12 h-12 rounded-lg bg-emerald-200 text-emerald-900 border border-emerald-400 flex items-center justify-center font-extrabold text-[10px] scale-110 transition-all duration-1000";
-        label.innerText = "Hold Breath (4s)";
-      } else if (breathingStage === 2) {
-        bubble.innerText = "Exhale";
-        bubble.className = "w-12 h-12 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-250 flex items-center justify-center font-extrabold text-[10px] scale-100 transition-all duration-1000";
-        label.innerText = "Sloooow Exhale (4s)";
-      } else {
-        bubble.innerText = "Rest";
-        bubble.className = "w-12 h-12 rounded-lg bg-emerald-50/50 text-emerald-500 border border-emerald-100 flex items-center justify-center font-extrabold text-[10px] scale-95 transition-all duration-1000";
-        label.innerText = "Relax Empty (4s)";
-      }
-    }, 4000);
-
-  </script>
-</body>
-</html>
+        )}
+      </main>
+    </div>
+  );
+}
